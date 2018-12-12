@@ -11,16 +11,12 @@
 # ARGUMENTS:
   # {product_minSpend}: a vector minimum spends for investments
   # {total_budget}: an integer which specifies how much to spend in total
-  # {increment} (optional): an integer that determines how many steps to generate
   # {alpha}: a vector of values that determines how quickly diminishing return is reached
   #         (i.e. the 'steepness' of the curve)
   # {beta}: a vector of values to ensure that response values correspond to current returns
   #         (i.e. a scalar that 'stretches' curve)
 
-createCurves <- function(product_minSpend, total_budget, alpha, beta, increment) {
-  
-  # increment will be set between 0.1% and 1% of budget (going by nearest power of 10), unless specified
-  if(missing(increment)) {increment <- 10^floor(log10(total_budget)) * 0.01}
+createCurves <- function(product_minSpend, total_budget, alpha, beta) {
   
   output <- list()
   
@@ -61,12 +57,8 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta, increment)
   # {marRet}: a dataframe of marginal returns of investments
           # (columns as investment and rows as spend)
   # {total_budget}: an integer which specifies how much to spend in total
-  # {increment}: (optional): an integer that determines how many steps to generate
 
-budgetAllocation <- function(df, marRet, total_budget, increment) {
-  
-  # increment will be set between 0.1% and 1% of budget (going by nearest power of 10), unless specified
-  if(missing(increment)) {increment <- 10^floor(log10(total_budget)) * 0.01}
+budgetAllocation <- function(df, marRet, total_budget) {
   
   # current marginal return
   cur_marRet <- as.numeric(marRet[1, ])
@@ -141,3 +133,5 @@ budgetAllocation <- function(df, marRet, total_budget, increment) {
   output <- list(marRet=cur_marRet_iterations, spend=cur_spend_iterations)
   return(output)
 }
+
+# -------------------------------------------------------------------------------
