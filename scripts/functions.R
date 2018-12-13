@@ -124,7 +124,7 @@ budgetAllocation <- function(df, marRet, total_budget) {
     cur_spend_iterations[[i]] <- cur_spend
   }
   
-  totalSpend <- seq(increment, length(cur_marRet_iterations)*increment, by=increment)
+  totalSpend <- seq(increment+sum(df$Minimum.Budget), total_budget, by=increment)
   
   # convert lists to dataframe
   cur_marRet_iterations <- cbind(totalSpend, data.frame(do.call("rbind", cur_marRet_iterations)))
@@ -134,4 +134,11 @@ budgetAllocation <- function(df, marRet, total_budget) {
   return(output)
 }
 
+
 # -------------------------------------------------------------------------------
+genColours <- function(theme, n) {
+  theme_colours <-  brewer.pal(8,name=theme)
+  n_colours <- colorRampPalette(theme_colours)
+  colours <- n_colours(n)
+  return(colours)
+}
