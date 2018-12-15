@@ -18,8 +18,10 @@ suppressMessages(library(ggrepel))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(plotly))
 
+suppressMessages(library(shiny))
+
 # 2. inputs =======================================================================================================
-total_budget <- 6000000
+total_budget <- 10000000
 
 # increment <- 1000 #optional input
   
@@ -27,9 +29,8 @@ total_budget <- 6000000
 dt <- read.csv('data/dummy_input_small.csv', stringsAsFactors = F)
 # ROI <- dt$Current.Return / dt$Current.Spend
 
-# define an increment that determines how many iterations to run
-# increment will be set between 0.1% and 1% of budget (going by nearest power of 10), unless specified
-increment <-  increment <- 10^floor(log10(total_budget)) * 0.01
+# increment will be set to generate 1000 iterations by default, unless specified
+increment <- (total_budget - sum(dt$Minimum.Budget))/1000
 # increment <- 1000
 
 # 3. response curves ===============================================================================================
@@ -130,6 +131,7 @@ new_pc <- sapply(spend_iterations_melt[c('pc', 'pc_cat1', 'pc_cat2')], function(
 
 # replace pc columns with percentages
 spend_iterations_melt[c('pc', 'pc_cat1', 'pc_cat2')] <- new_pc
+
 
 # 5.2.2. calcs for pie ch ===================================================================================
 # take the tranpose of spend_final to put in long format
@@ -254,6 +256,7 @@ menu_pie <- list(
          label = "Subcategory 2")
   ))
 
+# custom title
 title_pie <- list(
   x = '',
   y = '',
@@ -265,6 +268,7 @@ title_pie <- list(
   font = list(color='grey', size=29.5)
 )
 
+# create set of stacked charts
 pie_ch <- plot_ly(spend_final, labels = ~investment, values = ~investmentSpend, type = 'pie',
                   textposition = 'inside',
                   text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc),
