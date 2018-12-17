@@ -265,7 +265,7 @@ title_pie <- list(
   xref = "paper",
   yref = "paper",
   showarrow = F,
-  font = list(color='grey', size=29.5)
+  font = list(color='grey', size=29)
 )
 
 # create set of stacked charts
@@ -302,7 +302,7 @@ pie_ch <- plot_ly(spend_final, labels = ~investment, values = ~investmentSpend, 
             showlegend = F,
             visible = F) %>% 
   layout(title = '',
-         titlefont = list(color='grey'),
+         titlefont = list(color='grey', size=100),
          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
          hoverlabel = list(bordercolor='white', namelength=-1),
