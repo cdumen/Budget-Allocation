@@ -76,7 +76,6 @@ server <-  function(input, output, session) {
   data <- reactiveValues()
   data$file <-  read.csv('dt.csv', check.names = F)
   
-  
   # observe event: add data ----
   addData <- observeEvent(input$addButton,{
     
@@ -91,8 +90,17 @@ server <-  function(input, output, session) {
                           `Maximum Budget` = input$max_budget,
                           check.names = F)
     
-    # and add this on top
+    # and add on top of existing data
     data$file <- data.table(rbind(newLine, data$file))
+    
+    # define input type for cols
+    for(i in 1:ncol(data$file)) {
+      if(i %in% 4:8) {
+        data$file[[i]] <- as.numeric(data$file[[i]])
+      } else {
+        data$file[[i]] <- as.character(data$file[[i]])
+      }
+    }
     
     # clear fields
     sapply(c('investment', 'cat1', 'cat2', 'cur_spend', 'cur_ret', 'dim_ret', 'min_budget', 'max_budget'), 
@@ -103,7 +111,11 @@ server <-  function(input, output, session) {
   
   # observe event: addCSV ----
   addCSV <- observeEvent(input$file1, {
+    
+    # read in csv
     csv <- read.csv(input$file1$datapath, check.names = FALSE)
+    
+    # and add on top of existing data
     colnames(csv) <- colnames(data$file)
     data$file <- data.table(rbind(csv, data$file))
   })
@@ -133,31 +145,36 @@ server <-  function(input, output, session) {
       
     }# if nrow(dt)>0
     
-    # return dt formatted and DO NOT escape strings
-    datatable(format(dt, digits=5), escape=F, selection='none', options = list(pageLength = 10, dom = 'tip', 
-                                                             # call JS to format header
-                                                             initComplete = JS(
-                                                               "function(settings, json) {",
-                                                               "$(this.api().table().header()).css({'background-color': '#4b84ce', 'color': '#fff'});",
-                                                               "}"),
-                                                             
-                                                             # call JS to format cells: display no more than 10 characters in each
-                                                             columnDefs = list(list(
-                                                               targets = c(0,1,2,3,4,5,6,7),
-                                                               render = JS(
-                                                                 "function(data, type, row, meta) {",
-                                                                 "return type === 'display' && data.length > 10 ?",
-                                                                 "'<span title=\"' + data + '\">' + data.substr(0, 10) + '...</span>' : data;",
-                                                                 "}") # JS
-                                                               
-                                                               ) # list: inner columnDefs list
-                                                            ) # list: outer columnDefs list
-                                                         ), # list: options
+    # return dt formatted
+    datatable(format(dt, digits=5), 
+              # DO NOT escape strings
+              escape=F, 
+              # disable selection
+              selection='none', 
+              # show all input but limit to 10 entries per page
+              options = list(pageLength = 10, dom = 'tip', 
+                             # call JS to format header
+                             initComplete = JS(
+                               "function(settings, json) {",
+                               "$(this.api().table().header()).css({'background-color': '#4b84ce', 'color': '#fff'});",
+                               "}"),
+                             
+                             # call JS to format cells: display no more than 10 characters in each cell
+                             columnDefs = list(list(
+                               targets = c(0,1,2,3,4,5,6,7),
+                               render = JS(
+                                 "function(data, type, row, meta) {",
+                                 "return type === 'display' && data.length > 10 ?",
+                                 "'<span title=\"' + data + '\">' + data.substr(0, 10) + '...</span>' : data;",
+                                 "}") # JS
+                             ) # list: inner columnDefs list
+                             ) # list: outer columnDefs list
+              ), # list: options
               
               callback = JS('table.page(3).draw(false);')
               
-              ) # datatable
-    }) # renderDataTable
+    ) # datatable
+  }) # renderDataTable
   
   
   # UI: edit modal ----
@@ -165,21 +182,21 @@ server <-  function(input, output, session) {
     
     fluidPage(
       
-      h3('Edit input', align='center'),
+      h3('Edit input', align='center', style='color:#4b84ce'),
       hr(),
       
       # return edit table
       dataTableOutput('edit_table'),
       
-      # add save button
-      actionButton('save_changes', "Save changes"),
+      # adjust width of modal
+      tags$head(tags$style(HTML('.modal-lg{width:1100px;}'))),
       
-      
-      tags$script(HTML("$(document).on('click', '#save_changes', function() {
+      # changes pushed to a list in HTML and assign newValue as inputs
+      tags$script(HTML("$(document).on('click', '#save', function() {
                        var list_value=[]
-                       for (i = 0; i < $( '.new_input' ).length; i++)
+                       for (i = 0; i < $('.new_input').length; i++)
                        {
-                       list_value.push($( '.new_input' )[i].value)
+                       list_value.push($('.new_input')[i].value)
                        }
                        Shiny.onInputChange('newValue', list_value)
                        });") # HTML
@@ -187,7 +204,10 @@ server <-  function(input, output, session) {
       
     ), # fluidPage
     
-    size = 'l'
+    # add save button
+    footer=actionButton('save', "Save"),
+    
+    size = 'l', easyClose = TRUE
     
   )# modalDialog
   
@@ -212,30 +232,55 @@ server <-  function(input, output, session) {
   output$edit_table <- renderDataTable({
     
     # extract original values of selected row
-    edit_row <- gsub('edit_', '', input$lastClickId)
-    old_row <- dt[edit_row]
+    edit_row <- as.numeric(gsub('edit_', '', input$lastClickId))
+    old_row <- data$file[edit_row]
     
-    # loop through each column to and record input type and id
+    # loop through each column to generate HTML input for corresponding types
+    # pre-fill new input fields with original values
     new_row <- list()
-    for(i in colnames(old_row)) {
-      if(is.numeric(old_row[i])) {
-        new_row[[i]] <- paste0('<input class="new_input" type="number" id=new_', i, '>')
+    for(i in 1:ncol(data$file)) {
+      if(i %in% 4:8) {
+        new_row[[i]] <- paste(c('<input class="new_input" type="number" id=new_', i, ' value=', old_row[[i]], '>'), collapse='')
       } else {
-        new_row[[i]] <- paste0('<input class="new_input" type="text" id=new_', i, '>')
+        new_row[[i]] <- paste(c('<input class="new_input" type="text" id=new_', i, ' value=', as.character(old_row[[i]]), '>'), collapse='')
       } # else
     } # for
-    
-    # output table consists of new row and old row
+
+    # output table as row of the new fields
     new_row <- as.data.table(new_row)
     setnames(new_row, colnames(old_row))
-    DT <- rbind(old_row, new_row)
-    rownames(DT) <- c('Current input', 'New input')
-    DT
+    new_row
+
   }, # renderDataTable reactive
   
-  escape=F, options=list(dom='t',ordering=F), selection='none'
+  escape=F, selection='none', rownames=FALSE, options=list(dom='t',ordering=F)
   
   )# renderDataTable: edit modal
+  
+  
+  # observe event: save ----
+  observeEvent(input$newValue, {
+    
+    # convert input into correct type
+    newValue <- list()
+    
+    for(i in 1:length(input$newValue)) {
+      if(i %in% 4:8) {
+        newValue[[i]] <- as.numeric(as.character(input$newValue[i]))
+      } else {
+        newValue[[i]] <- input$newValue[i]
+      }
+    }
+
+    # put values into data frame and substitue row in data
+    dt <- data.frame(newValue, stringsAsFactors = FALSE)
+    colnames(dt) <- colnames(data$file)
+    suppressWarnings(data$file[as.numeric(gsub('edit_', '', input$lastClickId))] <- dt)
+    
+    # close modal
+    removeModal()
+    
+  }) # observeEvent:save
   
   
 } # server end

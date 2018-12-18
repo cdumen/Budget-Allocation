@@ -93,6 +93,10 @@
     font-size:20px;
 }
 
+.new_input{
+    width:110px;
+}
+
 hr {
     margin-top:4px;
     margin-bottom:4px
