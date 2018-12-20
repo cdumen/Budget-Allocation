@@ -1,46 +1,56 @@
+# rm(list = ls())
+
 library(shiny)
 library(data.table)
 library(DT)
 
+# disable the scientific formatting of numbers
+options(scipen = 999)
+
 # UI ----
 ui <-  fluidPage(
   
-  # theme = 'bootstrap.css',
+  # theme <- 'bootstrap.css',
   includeCSS("styles.css"),
   
+  # page title
   strong(h1('Budget Allocator', style='color:#4b84ce')),
   
   # side bar ----
   sidebarLayout(position='left',
                 
                 sidebarPanel(
-
-                  numericInput("total_budget", label=span(h4("Total Budget *")), value=""),
                   
-                  tags$hr(),
+                  # side bar: add invesment ----
+                  column(12, span(h4("Enter details of each investment"), style="color:#DEB887; padding-top:0px;")),
                   
-                  column(12, span(h4("Enter investment details"), style="color:#DEB887")),
-                  
-                  column(4, textInput("investment", label="Investment *", value="")),
-                  column(4, textInput("cat1", label=span("Group 1", style="color:grey"), value="")),
-                  column(4, textInput("cat2", label=span("Group 2", style="color:grey"), value="")),
-                  column(6, numericInput("cur_spend", label="Current Spend *", value="")),
-                  column(6, numericInput("cur_ret", label="Current Return *", value="")),
-                  column(12, numericInput("dim_ret", label=span("Diminishing Return", style="color:grey"), value="")),
-                  column(6, numericInput("min_budget", label=span("Minimum Budget", style="color:grey"), value="")),
-                  column(6, numericInput("max_budget", label=span("Maximum Budget", style="color:grey"), value="")),
+                  column(4, textInput("investment", label=span("Investment *", style='color:#4b84ce'), value="")),
+                  column(4, textInput("cat1", label=span("Group 1", style="color:#4b84ce;opacity:0.6;"), value="")),
+                  column(4, textInput("cat2", label=span("Group 2", style="color:#4b84ce;opacity:0.6;"), value="")),
+                  column(6, numericInput("cur_spend", label=span("Current Spend *", style='color:#4b84ce'), value="")),
+                  column(6, numericInput("cur_ret", label=span("Current Return *", style='color:#4b84ce'), value="")),
+                  column(12, numericInput("dim_ret", label=span("Diminishing Return", style="color:#4b84ce;opacity:0.6;"), value="")),
+                  column(6, numericInput("min_budget", label=span("Minimum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
+                  column(6, numericInput("max_budget", label=span("Maximum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
                   
                   actionButton("addButton", "Add", class='lpan'),
                   
                   tags$hr(),
                   
+                  # side bar: upload CSV ----
                   fileInput("file1", label=HTML('<h4 style="color:#DEB887;">And/or upload CSV file
-                                                </br><span><h5><lw>Make sure columns are in the same order shown on the right</lw></h5></span>
+                                                </br><span><h5><lw>Make sure columns are in the same order as table on the right</lw></h5></span>
                                                 </h4>'),
                             multiple = TRUE,
                             accept = c("text/csv",
                                        "text/comma-separated-values,text/plain",
-                                       ".csv"))
+                                       ".csv")),
+                  tags$hr(),
+                  
+                  # side bar: enter budget and allocate ----
+                  numericInput("total_budget", label=span(h4("Total Budget *", style='color:#4b84ce; margin-top:0px;')), value="", width='74%'),
+                  
+                  div(style='position:absolute;left:24.6em;bottom:4em',actionButton('allocateButton', strong('ALLOCATE'), class='opt'))
                   
                   ), # sidebarPanel end
                 
@@ -48,17 +58,17 @@ ui <-  fluidPage(
                 # main panel ----
                 mainPanel(
                   
+                  actionButton('clear_all', 'Clear all', style='margin-left:845px'),
+                  
+                  tags$hr(),
+                  
                   DT::DTOutput("table"),
                   
                   # create proxy variable ('input$lastClickId') in JS client which updates on button click
                   tags$script("$(document).on('click', '#table button', function () {
                               Shiny.onInputChange('lastClickId',this.id);
                               Shiny.onInputChange('lastClick', Math.random())
-                              });"),
-                  
-                  tags$hr(),
-                  
-                  column(3, actionButton('optButton', 'Go', class='opt'))
+                              });")
                   
                 ) # mainPanel
   ) # siderbarLayout
@@ -67,6 +77,9 @@ ui <-  fluidPage(
 
 # server ----
 server <-  function(input, output, session) { 
+  
+  # refresh ----
+  observeEvent(input$clear_all, {session$reload()})
   
   # csv data cols ----
   dt <- 'Investment,Group1,Group2,Current Spend,Current Return,Diminishing Return,Minimum Budget,Maximum Budget'
@@ -146,13 +159,17 @@ server <-  function(input, output, session) {
     }# if nrow(dt)>0
     
     # return dt formatted
-    datatable(format(dt, digits=5), 
+    datatable(format(dt, digits=7), 
               # DO NOT escape strings
               escape=F, 
               # disable selection
               selection='none', 
               # show all input but limit to 10 entries per page
-              options = list(pageLength = 10, dom = 'tip', 
+              options = list(pageLength = 10, dom = 'tip',
+                             
+                             # change default empty table message
+                             language = list(zeroRecords = "No details entered"),
+                             
                              # call JS to format header
                              initComplete = JS(
                                "function(settings, json) {",
@@ -200,7 +217,10 @@ server <-  function(input, output, session) {
                        }
                        Shiny.onInputChange('newValue', list_value)
                        });") # HTML
-                  ) # tags$script
+                  ), # tags$script
+      
+      # close button
+      actionButton('close_modal', 'X', class='close')
       
     ), # fluidPage
     
@@ -242,7 +262,7 @@ server <-  function(input, output, session) {
       if(i %in% 4:8) {
         new_row[[i]] <- paste(c('<input class="new_input" type="number" id=new_', i, ' value=', old_row[[i]], '>'), collapse='')
       } else {
-        new_row[[i]] <- paste(c('<input class="new_input" type="text" id=new_', i, ' value=', as.character(old_row[[i]]), '>'), collapse='')
+        new_row[[i]] <- paste(c('<input class="new_input" type="text" id=new_', i, ' value="', as.character(old_row[[i]]), '">'), collapse='')
       } # else
     } # for
 
@@ -283,6 +303,26 @@ server <-  function(input, output, session) {
   }) # observeEvent:save
   
   
+  # close modal ----
+  observeEvent(input$close_modal, {removeModal()})
+  
+  
+  # allocate ----
+  observeEvent(input$allocateButton, {
+    
+    total_budget <- input$total_budget
+    
+    dt <- data.frame(data$file)
+    
+    # increment will be set to generate 1000 iterations by default
+    increment <- (total_budget - sum(dt$`Minimum Budget`))/1000
+    
+    source('calcs/main.R', local=TRUE)
+    
+  })
+  
+  
 } # server end
 
 shinyApp(ui, server)
+
