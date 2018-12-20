@@ -105,6 +105,20 @@
     bottom:7.5em;
 }
 
+
+.btn.clear{
+    background:transparent;
+    border: none !important;
+    color:#4b84ce;
+    margin-left:835px;
+    font-size:16px;
+}
+
+.btn.clear:hover{
+    text-decoration:underline;
+    font-weight:normal;
+}
+
 .total_budget{
     width:1px;
 }
@@ -126,11 +140,25 @@ lw{
     padding-bottom:0px;
 }
 
+/* remove plotly modebar */
+.modebar{
+    display: none !important;
+}
 
 
+.navbar{
+    background-color:white;
+}
 
+.navbar-default .navbar-nav>li>a{
+    color: #4b84ce !important;
+    background-color:white; !important;
+}
 
-
+.navbar-default .navbar-nav>li>a:focus, .navbar-default .navbar-nav>li>a:hover {
+    color: #4b84ce !important;
+    #font-weight:bold;
+}
 
 
 .dataTables_wrapper
@@ -191,4 +219,16 @@ lw{
 
 .dataTables_info{
     color:#4b84ce !important;
+}
+
+
+.updatemenu-item-rect{
+    stroke:#4b84ce !important;
+}
+
+.updatemenu-item-text.user-select-none{
+    fill:#4b84ce !important;
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-size:13px !important;
+    font-weight:lighter !important;
 }

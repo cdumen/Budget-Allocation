@@ -3,6 +3,8 @@
 library(shiny)
 library(data.table)
 library(DT)
+library(plotly)
+library(shinycssloaders)
 
 # disable the scientific formatting of numbers
 options(scipen = 999)
@@ -13,70 +15,121 @@ ui <-  fluidPage(
   # theme <- 'bootstrap.css',
   includeCSS("styles.css"),
   
-  # page title
-  strong(h1('Budget Allocator', style='color:#4b84ce')),
-  
-  # side bar ----
-  sidebarLayout(position='left',
-                
-                sidebarPanel(
+  # tabs ----
+  navbarPage(title = div('Budget Allocator', style='color:#4b84ce;font-size:35px;width:300px;'), id='navbar',
+              
+    # tabs: input ----          
+    tabPanel('Input',
+             
+             sidebarLayout(position='left',
+                           
+                           # side bar ----
+                           sidebarPanel(
+                             
+                             # side bar: add invesment ----
+                             column(12, span(h4("Enter details of each investment"), style="color:#DEB887; padding-top:0px;")),
+                             
+                             column(4, textInput("investment", label=span("Investment *", style='color:#4b84ce'), value="")),
+                             column(4, textInput("cat1", label=span("Group 1", style="color:#4b84ce;opacity:0.6;"), value="")),
+                             column(4, textInput("cat2", label=span("Group 2", style="color:#4b84ce;opacity:0.6;"), value="")),
+                             column(6, numericInput("cur_spend", label=span("Current Spend *", style='color:#4b84ce'), value="")),
+                             column(6, numericInput("cur_ret", label=span("Current Return *", style='color:#4b84ce'), value="")),
+                             column(12, numericInput("dim_ret", label=span("Diminishing Return", style="color:#4b84ce;opacity:0.6;"), value="")),
+                             column(6, numericInput("min_budget", label=span("Minimum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
+                             column(6, numericInput("max_budget", label=span("Maximum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
+                             
+                             actionButton("addButton", "Add", class='lpan'),
+                             
+                             tags$hr(),
+                             
+                             # side bar: upload CSV ----
+                             # Make sure columns are in the same order as table on the right
+                             fileInput("file1", label=HTML('<h4 style="color:#DEB887;">And/or upload CSV file
+                                                           </br><span><h5><lw></lw></h5></span>
+                                                           </h4>'),
+                                       multiple = TRUE,
+                                       accept = c("text/csv",
+                                                  "text/comma-separated-values,text/plain",
+                                                  ".csv")),
+                             
+                             tags$hr(),
+                             
+                             # side bar: enter budget and allocate ----
+                             numericInput("total_budget", label=span(h4("Total Budget *", style='color:#4b84ce; margin-top:0px;')), value="", width='74%'),
+                             
+                             div(style='position:absolute;left:24.6em;bottom:4em',actionButton('allocateButton', strong('ALLOCATE'), class='opt'))
+                             
+                             ), # sidebarPanel end
+                           
+                           
+                           # main panel ----
+                           mainPanel(
+                             
+                             actionButton('clear_all', 'Clear all', class='clear'),
+                             
+                             tags$hr(),
+                             
+                             DT::DTOutput("table"),
+                             
+                             # create proxy variable ('input$lastClickId') in JS client which updates on button click
+                             tags$script("$(document).on('click', '#table button', function () {
+                                         Shiny.onInputChange('lastClickId',this.id);
+                                         Shiny.onInputChange('lastClick', Math.random())
+                                         });")
                   
-                  # side bar: add invesment ----
-                  column(12, span(h4("Enter details of each investment"), style="color:#DEB887; padding-top:0px;")),
-                  
-                  column(4, textInput("investment", label=span("Investment *", style='color:#4b84ce'), value="")),
-                  column(4, textInput("cat1", label=span("Group 1", style="color:#4b84ce;opacity:0.6;"), value="")),
-                  column(4, textInput("cat2", label=span("Group 2", style="color:#4b84ce;opacity:0.6;"), value="")),
-                  column(6, numericInput("cur_spend", label=span("Current Spend *", style='color:#4b84ce'), value="")),
-                  column(6, numericInput("cur_ret", label=span("Current Return *", style='color:#4b84ce'), value="")),
-                  column(12, numericInput("dim_ret", label=span("Diminishing Return", style="color:#4b84ce;opacity:0.6;"), value="")),
-                  column(6, numericInput("min_budget", label=span("Minimum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
-                  column(6, numericInput("max_budget", label=span("Maximum Budget", style="color:#4b84ce;opacity:0.6;"), value="")),
-                  
-                  actionButton("addButton", "Add", class='lpan'),
-                  
-                  tags$hr(),
-                  
-                  # side bar: upload CSV ----
-                  fileInput("file1", label=HTML('<h4 style="color:#DEB887;">And/or upload CSV file
-                                                </br><span><h5><lw>Make sure columns are in the same order as table on the right</lw></h5></span>
-                                                </h4>'),
-                            multiple = TRUE,
-                            accept = c("text/csv",
-                                       "text/comma-separated-values,text/plain",
-                                       ".csv")),
-                  tags$hr(),
-                  
-                  # side bar: enter budget and allocate ----
-                  numericInput("total_budget", label=span(h4("Total Budget *", style='color:#4b84ce; margin-top:0px;')), value="", width='74%'),
-                  
-                  div(style='position:absolute;left:24.6em;bottom:4em',actionButton('allocateButton', strong('ALLOCATE'), class='opt'))
-                  
-                  ), # sidebarPanel end
-                
-                
-                # main panel ----
-                mainPanel(
-                  
-                  actionButton('clear_all', 'Clear all', style='margin-left:845px'),
-                  
-                  tags$hr(),
-                  
-                  DT::DTOutput("table"),
-                  
-                  # create proxy variable ('input$lastClickId') in JS client which updates on button click
-                  tags$script("$(document).on('click', '#table button', function () {
-                              Shiny.onInputChange('lastClickId',this.id);
-                              Shiny.onInputChange('lastClick', Math.random())
-                              });")
-                  
-                ) # mainPanel
-  ) # siderbarLayout
+                           ) # mainPanel
+                    ) # siderbarLayout
+              ), # tabPanel 
+    
+    # tabs: stacked chart ----
+    tabPanel('Allocation Process', sidebarLayout(position='left',
+                                   
+                                    sidebarPanel(
+                                      h2('The allocation process', style='color:#DEB887;'),
+                                      
+                                      tags$hr(), tags$hr(), tags$hr(),
+                                      
+                                      p('Your budget is allocated using a step-by-step process.', 
+                                        style='font-size:18px;color:grey'),
+                                      
+                                      p('At each step, we increase the spend by a small increment and look at the return it gives 
+                                        (how we estimate the return is outlined in the Cumulative Return section).', 
+                                        style='font-size:18px;color:grey'),
+                                      
+                                      # paste()
+                                      
+                                      p('From this, we can calculate the return of investment (ROI) and the rate of return for the increase in spend (marginal return).', 
+                                        style='font-size:18px;color:grey'),
+                                      
+                                      p('We do this for every investment at each step for 1000 steps until we reach the total budget.', 
+                                        style='font-size:18px;color:grey'),
+                                      
+                                      tags$hr(), tags$hr(), tags$hr(),
+                                      
+                                      p('This chart shows how your budget is allocated and the optimal spend combinations every step of the way - 
+                                        hover over it to see which investments the colours corresponds to!', 
+                                        style='font-size:18px;color:#DEB887;font-style:italic;'),
+                                      
+                                      style='margin-top:40px;;'
+                                      
+                                      ),
+                                   
+                                    mainPanel(div(withSpinner(plotlyOutput('stacked_ch')), align='center')))),
+    
+    # tabs: Tab2 ----
+    tabPanel('Tab2', plotlyOutput('pie_ch'))
+    
+  ) # tabsetPanel
+
 ) # fluidPage
 
 
 # server ----
 server <-  function(input, output, session) { 
+  
+  # hide non-input tabs by default
+  hideTab('navbar', 'Allocation Process')
+  hideTab('navbar', 'Tab2')
   
   # refresh ----
   observeEvent(input$clear_all, {session$reload()})
@@ -199,7 +252,7 @@ server <-  function(input, output, session) {
     
     fluidPage(
       
-      h3('Edit input', align='center', style='color:#4b84ce'),
+      h3('Edit input', align='center', style='color:#DEB887'),
       hr(),
       
       # return edit table
@@ -307,7 +360,7 @@ server <-  function(input, output, session) {
   observeEvent(input$close_modal, {removeModal()})
   
   
-  # allocate ----
+  # allocate budget ----
   observeEvent(input$allocateButton, {
     
     total_budget <- input$total_budget
@@ -317,7 +370,15 @@ server <-  function(input, output, session) {
     # increment will be set to generate 1000 iterations by default
     increment <- (total_budget - sum(dt$`Minimum Budget`))/1000
     
+    # call source of calculations
     source('calcs/main.R', local=TRUE)
+    
+    showTab('navbar', 'Allocation Process')
+    showTab('navbar', 'Tab2')
+    
+    updateTabsetPanel(session, 'navbar', 'Allocation Process')
+    
+    output$stacked_ch <- renderPlotly(stacked_ch)
     
   })
   

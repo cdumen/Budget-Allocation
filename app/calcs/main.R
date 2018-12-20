@@ -168,33 +168,33 @@ spend_final_cat2 <- spend_final_cat2[order(spend_final_cat2$cat2), ]
 # menu where user can navigate across categories
 menu_stacked <- list(
   type = "buttons",
-  direction = "down",
-  xanchor = 'right',
+  direction = "right",
+  xanchor = 'center',
   yanchor = "top",
   bgcolor='white',
-  font=list(color='grey'),
+  font=list(color='#A9A9A9'),
   pad = list('r'= 0, 't'= 10, 'b' = 10),
-  x = 0.1,
-  y = 0.969,
+  x = 0.5,
+  y = 1.01,
   buttons = list(
 
     list(method = "restyle",
          args = list("visible", c(rep(list(T), nInvestments),
                                   rep(list(F), nInvestments_cat1),
                                   rep(list(F), nInvestments_cat2))),
-         label = "All Categories"),
+         label = "All Investments"),
 
     list(method = "restyle",
          args = list("visible", c(rep(list(F), nInvestments),
                                   rep(list(T), nInvestments_cat1),
                                   rep(list(F), nInvestments_cat2))),
-         label = "Subcategory 1"),
+         label = "Group 1"),
 
     list(method = "restyle",
          args = list("visible", c(rep(list(F), nInvestments),
                                   rep(list(F), nInvestments_cat1),
                                   rep(list(T), nInvestments_cat2))),
-         label = "Subcategory 2")
+         label = "Group 2")
   ))
 
 # add a diagonal watermark (serves as title too)
@@ -207,7 +207,7 @@ watermark <- list(
   showarrow = F,
   font = list(color='#DCDCDC', size=48),
   opacity = 0.8,
-  textangle = -45
+  textangle = -41.1
   # -atan(total_budget/(total_budget-sum(dt$Minimum.Budget)))*(180/pi)
 )
 
@@ -229,96 +229,98 @@ stacked_ch <- plot_ly(spend_iterations_melt, x = ~totalSpend, y = ~investmentSpe
             hoverinfo='x+text+name', showlegend=F,
             visible=F) %>%
   layout(yaxis = list(title='', spikecolor='grey', spikethickness=0.1, spikedash='solid', showgrid=F, showline=F, showticklabels=F),
-         xaxis = list(title = '', spikecolor='grey', spikethickness=0.1, spikedash='solid', tickfont=list(size=18, color='grey')),
+         xaxis = list(title = '', spikecolor='grey', spikethickness=0.1, spikedash='solid', tickfont=list(color='grey')),
          barmode = 'stack',
          hovermode = 'compare', hoverlabel = list(bordercolor='white', namelength=-1),
          legend = list(orientation = 'h'),
-         annotations = list(watermark),
-         updatemenus = list(menu_stacked))
+         # annotations = list(watermark),
+         updatemenus = list(menu_stacked),
+         height=640, width=850)
 
 stacked_ch
 
-# # 5.2.2. pie charts ======================================================================================
-# # menu where user can navigate across categories
-# menu_pie <- list(
-#   type = "buttons",
-#   direction = "down",
-#   xanchor = 'right',
-#   yanchor = "top",
-#   bgcolor='white',
-#   font=list(color='grey'),
-#   pad = list('r'= 0, 't'= 10, 'b' = 10),
-#   x = 0.1,
-#   y = 0.969,
-#   buttons = list(
-# 
-#     list(method = "restyle",
-#          args = list("visible", list(T,F,F)),
-#          label = "All Categories"),
-# 
-#     list(method = "restyle",
-#          args = list("visible", list(F,T,F)),
-#          label = "Subcategory 1"),
-# 
-#     list(method = "restyle",
-#          args = list("visible", list(F,F,T)),
-#          label = "Subcategory 2")
-#   ))
-# 
-# # custom title
-# title_pie <- list(
-#   x = '',
-#   y = '',
-#   text = paste('Optimal allocation for your budget of', prettyNum(total_budget, big.mark=',')),
-#   textposition = 'outside',
-#   xref = "paper",
-#   yref = "paper",
-#   showarrow = F,
-#   font = list(color='grey', size=29)
-# )
-# 
-# # create set of pie charts
-# pie_ch <- plot_ly(spend_final, labels = ~investment, values = ~investmentSpend, type = 'pie',
-#                   textposition = 'inside',
-#                   text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc),
-#                   textinfo = 'text+label',
-#                   insidetextfont = list(color='#FFFFFF'),
-#                   hoverinfo = 'text+label',
-#                   marker = list(colors=c(colours),
-#                                 line=list(color='#FFFFFF', width=1)),
-#                   showlegend = F,
-#                   visible = T) %>%
-#   add_trace(spend_final_cat1, labels = ~cat1, values = ~investmentSpend, type = 'pie',
-#             textposition = 'inside',
-#             text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat1),
-#             textinfo = 'text+label',
-#             insidetextfont = list(color='#FFFFFF'),
-#             hoverinfo = 'text+label',
-#             marker = list(
-#               colors=spend_final$colours_cat1,
-#               line=list(color='#FFFFFF', width=1)),
-#             showlegend = F,
-#             visible = F) %>%
-#   add_trace(spend_final_cat2, labels = ~cat2, values = ~investmentSpend, type = 'pie',
-#             textposition = 'inside',
-#             text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat2),
-#             textinfo = 'text+label',
-#             insidetextfont = list(color='#FFFFFF'),
-#             hoverinfo = 'text+label',
-#             marker = list(
-#               colors=spend_final$colours_cat2,
-#               line=list(color='#FFFFFF', width=1)),
-#             showlegend = F,
-#             visible = F) %>%
-#   layout(title = '',
-#          titlefont = list(color='grey', size=100),
-#          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-#          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-#          hoverlabel = list(bordercolor='white', namelength=-1),
-#          annotations = title_pie,
-#          updatemenus = list(menu_pie))
-# 
-# pie_ch
+# 5.2.2. pie charts ======================================================================================
+# menu where user can navigate across categories
+menu_pie <- list(
+  type = "buttons",
+  direction = "down",
+  xanchor = 'right',
+  yanchor = "top",
+  bgcolor='white',
+  font=list(color='grey'),
+  pad = list('r'= 0, 't'= 10, 'b' = 10),
+  x = 0.1,
+  y = 0.969,
+  buttons = list(
+
+    list(method = "restyle",
+         args = list("visible", list(T,F,F)),
+         label = "All Categories"),
+
+    list(method = "restyle",
+         args = list("visible", list(F,T,F)),
+         label = "Subcategory 1"),
+
+    list(method = "restyle",
+         args = list("visible", list(F,F,T)),
+         label = "Subcategory 2")
+  ))
+
+# custom title
+title_pie <- list(
+  x = '',
+  y = '',
+  text = paste('Optimal allocation for your budget of', prettyNum(total_budget, big.mark=',')),
+  textposition = 'outside',
+  xref = "paper",
+  yref = "paper",
+  showarrow = F,
+  font = list(color='grey', size=29)
+)
+
+# create set of pie charts
+pie_ch <- plot_ly(spend_final, labels = ~investment, values = ~investmentSpend, type = 'pie',
+                  textposition = 'inside',
+                  text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc),
+                  textinfo = 'text+label',
+                  insidetextfont = list(color='#FFFFFF'),
+                  hoverinfo = 'text+label',
+                  marker = list(colors=c(colours),
+                                line=list(color='#FFFFFF', width=1)),
+                  showlegend = F,
+                  visible = T) %>%
+  add_trace(spend_final_cat1, labels = ~cat1, values = ~investmentSpend, type = 'pie',
+            textposition = 'inside',
+            text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat1),
+            textinfo = 'text+label',
+            insidetextfont = list(color='#FFFFFF'),
+            hoverinfo = 'text+label',
+            marker = list(
+              colors=spend_final$colours_cat1,
+              line=list(color='#FFFFFF', width=1)),
+            showlegend = F,
+            visible = F) %>%
+  add_trace(spend_final_cat2, labels = ~cat2, values = ~investmentSpend, type = 'pie',
+            textposition = 'inside',
+            text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat2),
+            textinfo = 'text+label',
+            insidetextfont = list(color='#FFFFFF'),
+            hoverinfo = 'text+label',
+            marker = list(
+              colors=spend_final$colours_cat2,
+              line=list(color='#FFFFFF', width=1)),
+            showlegend = F,
+            visible = F) %>%
+  layout(title = '',
+         titlefont = list(color='grey', size=100),
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         hoverlabel = list(bordercolor='white', namelength=-1),
+         # annotations = title_pie,
+         updatemenus = list(menu_pie),
+         height=800, width=600)
+
+pie_ch
 
 
 end_time <- Sys.time()
