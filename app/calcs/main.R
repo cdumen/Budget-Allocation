@@ -36,6 +36,9 @@ suppressMessages(library(shiny))
 colnames(dt) <- c("Investment", "Category1", "Category2" , "Current.Spend", "Current.Return",
                   "Diminishing.Return", "Minimum.Budget", "Maximum.Budget" )
 
+# increment will be set to generate 1000 iterations by default
+increment <- (total_budget - sum(dt$Minimum.Budget))/1000
+
 # if no group names given, label as 'Ungrouped'
 suppressWarnings(dt$Category1[dt$Category1 == ''] <- 'Ungrouped')
 suppressWarnings(dt$Category2[dt$Category2 == ''] <- 'Ungrouped')

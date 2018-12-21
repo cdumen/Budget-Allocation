@@ -1,10 +1,11 @@
-# rm(list = ls())
+rm(list = ls())
 
 library(shiny)
 library(data.table)
 library(DT)
 library(plotly)
 library(shinycssloaders)
+library(shinyalert)
 
 # disable the scientific formatting of numbers
 options(scipen = 999)
@@ -14,6 +15,9 @@ ui <-  fluidPage(
   
   # theme <- 'bootstrap.css',
   includeCSS("styles.css"),
+  
+  # set up shinyalert
+  useShinyalert(),
   
   # tabs ----
   navbarPage(title = div('Budget Allocator', style='color:#4b84ce;font-size:35px;width:300px;'), id='navbar',
@@ -180,11 +184,26 @@ server <-  function(input, output, session) {
     
     # read in csv
     csv <- read.csv(input$file1$datapath, check.names = FALSE)
-    
-    # and add on top of existing data
     colnames(csv) <- colnames(data$file)
-    data$file <- data.table(rbind(csv, data$file))
-  })
+    
+    dt <- data.frame(csv)
+    
+    # check that the Investment, Current.Spend & Current.Return cols have the correct type and no NAs
+    if((!all(dt$Investment != '') |
+        !(is.numeric(dt$Current.Spend))) | !(all(!is.na(dt$Current.Spend))) | 
+        !(is.numeric(dt$Current.Return)) | !(all(!is.na(dt$Current.Return)))) {
+      
+      # return error modal if fail criteria
+      shinyalert("Invalid Input","The CSV must have the same ordering of columns as the table shown. 'Investment', 'Current Spend' and 'Current Return' must be fully filled.", 
+                 type="error")
+      
+    } else {
+      
+      # if no error, add csv top of existing data
+      data$file <- data.table(rbind(csv, data$file))
+      
+    } # else
+  }) # observeEvent: addCSV
   
   
   # render table: main output ----
@@ -367,20 +386,34 @@ server <-  function(input, output, session) {
     
     dt <- data.frame(data$file)
     
-    # increment will be set to generate 1000 iterations by default
-    increment <- (total_budget - sum(dt$`Minimum Budget`))/1000
-    
-    # call source of calculations
-    source('calcs/main.R', local=TRUE)
-    
-    showTab('navbar', 'Allocation Process')
-    showTab('navbar', 'Tab2')
-    
-    updateTabsetPanel(session, 'navbar', 'Allocation Process')
-    
-    output$stacked_ch <- renderPlotly(stacked_ch)
-    
-  })
+    # error if no total budget input
+    if(!is.numeric(total_budget)) {
+      shinyalert("Oh no!","No total budget entered", type="error")
+      
+    } else {
+      
+      # error if no investment details
+      if(nrow(dt)==0) {
+        shinyalert("Oh no!","No investment details entered", type="error")
+        
+      } else {
+          
+        # call source of calculations
+        source('calcs/main.R', local=TRUE)
+        
+        # unhide tabs
+        showTab('navbar', 'Allocation Process')
+        showTab('navbar', 'Tab2')
+        
+        # direct user to the summary page
+        updateTabsetPanel(session, 'navbar', 'Allocation Process')
+        
+        # render output
+        output$stacked_ch <- renderPlotly(stacked_ch)
+        
+        } # else: calcs
+    } # else: nrow(dt)==0
+  }) # observeEvent: allocate
   
   
 } # server end
