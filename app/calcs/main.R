@@ -33,8 +33,18 @@ suppressMessages(library(shiny))
 # # delete ---------------------------------------------------------------------------------
 
 # make column names referenceable
-colnames(dt) <- c("Investment", "Category1", "Category2" , "Current.Spend", "Current.Return",
-                  "Diminishing.Return", "Minimum.Budget", "Maximum.Budget" )
+colnames(dt) <- c("Investment", "Category1", "Category2" , "Current.Spend", "Current.Return", 
+                  "Weeks","Diminishing.Return", "Minimum.Budget", "Maximum.Budget" )
+
+# if there is no budget constraint for investment, assign the total budget as its maximum budget
+dt$Minimum.Budget[is.na(dt$Minimum.Budget)] <- 0
+dt$Maximum.Budget[is.na(dt$Maximum.Budget)] <- total_budget
+
+# if sum of individual constraints is smaller than the total budget, set this as total budget
+# this really shouldn't happen unless the user misunderstands the purpose of the app!
+if(total_budget > sum(dt$Maximum.Budget)) {
+  total_budget <- sum(dt$Maximum.Budget)
+}
 
 # increment will be set to generate 1000 iterations by default
 increment <- (total_budget - sum(dt$Minimum.Budget))/1000
@@ -43,22 +53,17 @@ increment <- (total_budget - sum(dt$Minimum.Budget))/1000
 suppressWarnings(dt$Category1[dt$Category1 == ''] <- 'Ungrouped')
 suppressWarnings(dt$Category2[dt$Category2 == ''] <- 'Ungrouped')
 
-# if there is no budget constraint for investment, assign the total budget as its maximum budget
-dt$Minimum.Budget[is.na(dt$Minimum.Budget)] <- 0
-dt$Maximum.Budget[is.na(dt$Maximum.Budget)] <- total_budget
-
-# ROI <- dt$Current.Return / dt$Current.Spend
-
 
 # 3. response curves ===============================================================================================
 
 # define the alpha that will determine the steepness of the curve (i.e. how quickly we hit dimishing returns)
-# usually this would be the current spend, unless user specifies the diminishing returns value
-dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return),
-                                   Current.Return,
+# usually this would be (spend/week)*weeks_covered, unless user specifies the diminishing returns spend
+dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return), 
+                                   (Current.Spend/Weeks) * weeks_covered, 
                                    Diminishing.Return))
 
-# calculate the multiplier that will stretch the curve so that it crosses our current spend and return point
+# define beta that will stretch the curve so that it crosses our current spend and return point
+# beta is also the value that the curves is capped at
 dt$Beta <- dt$Current.Return / (1-exp(-dt$Current.Spend/dt$Alpha))
 
 # run function that will generate output that contains both the cumulative response and marginal response
@@ -68,26 +73,39 @@ Curves <- apply(dt, 1, function(x) createCurves(x["Minimum.Budget"], total_budge
 cumRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["cumRet"])))
 colnames(cumRet) <- dt$Investment
 
-# Plot curves - atm there are too many curves, may have to run this on smaller dataset
-cumRet_melt <- cbind(spend=seq(0, total_budget, increment), cumRet)
+cumRet <- round(cumRet, digits=2)
+
+# melt data for graphing purposes
+cumRet_melt <- cbind(spend=round(seq(0, total_budget, increment), digits=2), cumRet)
 cumRet_melt <- melt(cumRet_melt, id.vars = "spend")
-#--------COME BACK TO ------------------------------------
-# ggplot(cumRet_melt, aes(x=spend, y=value)) +
-#   geom_line(aes(group=variable, color=variable), show.legend = FALSE) +
-#   theme_minimal()
-#--------COME BACK TO ------------------------------------
+
+# add minimum spend
+for(i in 1:nrow(dt)) {
+  spend_i <- cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend']
+  cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend'] <- spend_i + dt[i, 'Minimum.Budget']
+}
+
+#-------------------------------------------------------------------------------------
+# plot curves - atm there are too many curves, may have to run this on smaller dataset
+ggplot(cumRet_melt, aes(x=spend, y=value)) +
+  geom_line(aes(group=variable, color=variable), show.legend = FALSE) +
+  theme_minimal()
+#-------------------------------------------------------------------------------------
 
 # compile all marginal response curves
 marRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["marRet"])))
 colnames(marRet) <- dt$Investment
 
+# melt data
+marRet_melt <- cbind(spend=round(seq(increment, total_budget, increment), digits=2), marRet)
+marRet_melt <- melt(marRet_melt, id.vars = "spend")
 
 # 4. spend allocation =======================================================================================
 
 # allocate budget
 allocation <- budgetAllocation(dt, marRet, total_budget, increment)
 
-spend_iterations <- allocation$spend
+spend_iterations <- round(allocation$spend, digits=2)
 
 
 # 5. charting ===============================================================================================

@@ -1,7 +1,7 @@
 ,Category1,Category2,Current Spend,Current Return,Weeks,Diminishing Return,Minimum Budget,Maximum Budget
 STV,Strawberry,TV,245442,213559.19,48,,0,
 SPR,Strawberry,PR,23076,10485.1183,10,,0,100000
-SOfhdlsnfklsdmfmdmfm,Strawberry,Outdoor,128616,11561.6689031619,6,11561.6689031619,0,100000
+SOfhdlsnfklsdmfmdmfm,Strawberry,Outdoor,128616,11561.6689031619,,11561.6689031619,0,100000
 ATV,Apple,TV,168483,145005.193135961,20,,0,
 APR,Apple,PR,8225,3223.80731630484,9,,0,100000
 AO,Apple,Outdoor,45845,12384.9974,13,15000,0,100000

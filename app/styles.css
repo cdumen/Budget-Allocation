@@ -101,7 +101,7 @@
     padding: 0px 0px;
     font-size:22px;
     position:absolute;
-    left:48.5em;
+    left:57.8em;
     bottom:7.5em;
 }
 
@@ -124,12 +124,12 @@
 }
 
 .new_input{
-    width:110px;
+    width:120px;
 }
 
 
 hr {
-    margin-top:4px;
+    margin-top:6px;
     margin-bottom:4px;
     border-color:white;
 }
@@ -232,3 +232,4 @@ lw{
     font-size:13px !important;
     font-weight:lighter !important;
 }
+

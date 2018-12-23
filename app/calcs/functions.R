@@ -9,12 +9,12 @@
 # PACKAGE DEPENDENCIES: none
 # FUNCTION DEPENDENCIES: none
 # ARGUMENTS:
-  # {product_minSpend}: a vector minimum spends for investments
-  # {total_budget}: an integer which specifies how much to spend in total
-  # {alpha}: a vector of values that determines how quickly diminishing return is reached
-  #         (i.e. the 'steepness' of the curve)
-  # {beta}: a vector of values to ensure that response values correspond to current returns
-  #         (i.e. a scalar that 'stretches' curve)
+# {product_minSpend}: a vector minimum spends for investments
+# {total_budget}: an integer which specifies how much to spend in total
+# {alpha}: a vector of values that determines how quickly diminishing return is reached
+#         (i.e. the 'steepness' of the curve)
+# {beta}: a vector of values to ensure that response values correspond to current returns
+#         (i.e. a scalar that 'stretches' curve)
 
 createCurves <- function(product_minSpend, total_budget, alpha, beta, increment) {
   
@@ -31,7 +31,7 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta, increment)
   output[["cumRet"]] <- beta*(1 - exp(-(spend/alpha)))
   
   # Calculate marginal return for each spend
-  output[["marRet"]] <- (output[["cumRet"]] - lag(output[["cumRet"]])) / increment
+  output[["marRet"]] <- (output[["cumRet"]] - lag(output[["cumRet"]]) - increment) / increment
   # Remove first value of NA in marRet
   output[["marRet"]] <- output[["marRet"]][-1]
   
@@ -48,15 +48,15 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta, increment)
 # PACKAGE DEPENDENCIES: none
 # FUNCTION DEPENDENCIES: none
 # ARGUMENTS:
-  # {df}: a dataframe which must contain: 
-          # "Investment" (ID of investments)
-          # "Category1" (category of investment)
-          # "Category2" (sub-category of investment)
-          # "Minimum.Budget"
-          # "Maximum.Budget"
-  # {marRet}: a dataframe of marginal returns of investments
-          # (columns as investment and rows as spend)
-  # {total_budget}: an integer which specifies how much to spend in total
+# {df}: a dataframe which must contain: 
+# "Investment" (ID of investments)
+# "Category1" (category of investment)
+# "Category2" (sub-category of investment)
+# "Minimum.Budget"
+# "Maximum.Budget"
+# {marRet}: a dataframe of marginal returns of investments
+# (columns as investment and rows as spend)
+# {total_budget}: an integer which specifies how much to spend in total
 
 budgetAllocation <- function(df, marRet, total_budget, increment) {
   
@@ -89,8 +89,6 @@ budgetAllocation <- function(df, marRet, total_budget, increment) {
   # run allocation until we reach the total_budget
   for(i in 1:n_iterations) {
     
-    if(sum(cur_spend) == sum(max_spend)) {break}
-    
     # sort the current margin in descending order
     cur_marRet_ordered <- sort(cur_marRet, method='radix', decreasing = T)
     
@@ -101,20 +99,20 @@ budgetAllocation <- function(df, marRet, total_budget, increment) {
       cur_investment <- which(df$Investment == names(cur_marRet_ordered)[j])
       
       # check constraints to see if we can still spend on this
-      if(cur_spend[cur_investment] < max_spend[cur_investment]) { # if yes,
+      if(cur_spend[cur_investment] + increment <= max_spend[cur_investment]) { # if yes,
         
-        # update the current spend
+        # if not, update current spend
         cur_spend[cur_investment] <- cur_spend[cur_investment] + increment
         
         # move marRet row index along one for the selected investment
         cur_marRet_rowIndex[cur_investment] <- cur_marRet_rowIndex[cur_investment] + 1
         rowIndex <- cur_marRet_rowIndex[cur_investment]
-
+        
         # update the current marginal return
         cur_marRet[cur_investment] <- marRet[rowIndex, cur_investment]
         
-        # if investment spend has now reached maximum, assign -1 to all its marRet values
-        if(cur_spend[cur_investment] == max_spend[cur_investment]) {cur_marRet[cur_investment] <- -1}
+        # if investment spend has now reached maximum, assign -Inf to all its marRet values
+        if(cur_spend[cur_investment] == max_spend[cur_investment]) {cur_marRet[cur_investment] <- -Inf}
         
         break
       }
@@ -124,7 +122,7 @@ budgetAllocation <- function(df, marRet, total_budget, increment) {
     cur_spend_iterations[[i]] <- cur_spend
   }
   
-  totalSpend <- seq(increment+sum(df$Minimum.Budget), total_budget, by=increment)
+  totalSpend <- round(seq(increment+sum(df$Minimum.Budget), total_budget, by=increment), digits=2)
   
   # convert lists to dataframe
   cur_marRet_iterations <- cbind(totalSpend, data.frame(do.call("rbind", cur_marRet_iterations)))

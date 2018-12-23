@@ -1,6 +1,6 @@
 rm(list =ls())
 
-source('scripts/functions.R')
+source('/Users/leduong/Documents/Git/Budget-Allocation/scripts/functions.R')
 
 # disable the scientific formatting of numbers
 options(scipen = 999)
@@ -13,7 +13,7 @@ suppressMessages(library(zoo))
 
 # graphing libraries
 suppressMessages(library(ggplot2))
-suppressMessages(library(directlabels)) # uninstall
+# suppressMessages(library(directlabels)) # uninstall
 suppressMessages(library(ggrepel))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(plotly))
@@ -21,42 +21,64 @@ suppressMessages(library(plotly))
 suppressMessages(library(shiny))
 
 # 2. inputs =======================================================================================================
-total_budget <- 10000000
+total_budget <- 963698
 
-# increment <- 1000 #optional input
+weeks_covered <- 52
   
 # read in products, their current spend and return, diminishing returns, max and min budgets
-dt <- read.csv('data/dummy_input_small.csv', stringsAsFactors = F)
-# ROI <- dt$Current.Return / dt$Current.Spend
+dt <- read.csv('/Users/leduong/Documents/Git/Budget-Allocation/data/dummy_input_small.csv', stringsAsFactors = F)
+ROI <- dt$Current.Return / dt$Current.Spend
+
+if(total_budget > sum(dt$Maximum.Budget)) {
+  total_budget <- sum(dt$Maximum.Budget)
+}
 
 # increment will be set to generate 1000 iterations by default, unless specified
 increment <- (total_budget - sum(dt$Minimum.Budget))/1000
 # increment <- 1000
+
+
 
 # 3. response curves ===============================================================================================
 
 # define a unique "Investment" name - a concatenation of Category1 and Category2
 dt <- cbind(Investment=paste(dt$Category1, dt$Category2, sep='_'), dt, stringsAsFactors = FALSE)
 
+
+
+
 # define the alpha that will determine the steepness of the curve (i.e. how quickly we hit dimishing returns)
-# usually this would be the current spend, unless user specifies the diminishing returns value
+# usually this would be (spend/week)*weeks_covered, unless user specifies the diminishing returns spend
 dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return), 
-                                   Current.Return, 
+                                   (Current.Spend/Weeks) * weeks_covered, 
                                    Diminishing.Return))
 
-# calculate the multiplier that will stretch the curve so that it crosses our current spend and return point
+# define beta that will stretch the curve so that it crosses our current spend and return point
+# beta is also the value that the curves is capped at
 dt$Beta <- dt$Current.Return / (1-exp(-dt$Current.Spend/dt$Alpha))
 
+
+
+# CHANGE ------
 # run function that will generate output that contains both the cumulative response and marginal response 
-Curves <- apply(dt, 1, function(x) createCurves(x["Minimum.Budget"], total_budget, x["Alpha"], x["Beta"]))
+Curves <- apply(dt, 1, function(x) createCurves(x["Minimum.Budget"], total_budget, alpha=x["Alpha"], beta=x["Beta"]))
 
 # compile all cumulative response curves
 cumRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["cumRet"])))
 colnames(cumRet) <- dt$Investment
 
-# Plot curves - atm there are too many curves, may have to run this on smaller dataset
-cumRet_melt <- cbind(spend=seq(0, total_budget, increment), cumRet)
+# melt data for graphing purposes
+cumRet <- round(cumRet, digits=2)
+cumRet_melt <- cbind(spend=round(seq(0, total_budget, increment), digits=2), cumRet)
 cumRet_melt <- melt(cumRet_melt, id.vars = "spend")
+
+# add minimum spend
+for(i in 1:nrow(dt)) {
+  spend_i <- cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend']
+  cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend'] <- spend_i + dt[i, 'Minimum.Budget']
+}
+
+# plot curves - atm there are too many curves, may have to run this on smaller dataset
 ggplot(cumRet_melt, aes(x=spend, y=value)) +
   geom_line(aes(group=variable, color=variable), show.legend = FALSE) +
   theme_minimal()
@@ -65,6 +87,9 @@ ggplot(cumRet_melt, aes(x=spend, y=value)) +
 marRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["marRet"])))
 colnames(marRet) <- dt$Investment
 
+# melt data
+marRet_melt <- cbind(spend=round(seq(increment, total_budget, increment), digits=2), marRet)
+marRet_melt <- melt(marRet_melt, id.vars = "spend")
 
 # 4. spend allocation =======================================================================================
 
@@ -75,8 +100,9 @@ dt$Maximum.Budget[is.na(dt$Maximum.Budget)] <- total_budget
 allocation <- budgetAllocation(dt, marRet, total_budget)
 # system.time(budgetAllocation(dt, marRet, total_budget, increment))
 
-spend_iterations <- allocation$spend
+spend_iterations <- round(allocation$spend, digits=2)
 
+final <- tail(spend_iterations, 1)[-1]
 
 # 5. charting ===============================================================================================
 # 5.1. colour palette =======================================================================================
@@ -107,9 +133,6 @@ spend_iterations_melt$investment <- factor(spend_iterations_melt$investment, lev
 spend_iterations_melt$cat1 <- factor(spend_iterations_melt$cat1, levels=unique(dt$Category1))
 spend_iterations_melt$cat2 <- factor(spend_iterations_melt$cat2, levels=unique(dt$Category2))
 
-# replace '_' with '-' for better labelling
-levels(spend_iterations_melt$investment) <- gsub('_', "-", levels(spend_iterations_melt$investment), fixed=T)
-
 # calculate percentage of investment spend relative to the total (for chart labels)
 # create placeholder columns for these percentages by setting it equal to spend
 cat1_sum <- aggregate(data=spend_iterations_melt, investmentSpend~totalSpend+cat1, FUN=sum)
@@ -132,27 +155,6 @@ new_pc <- sapply(spend_iterations_melt[c('pc', 'pc_cat1', 'pc_cat2')], function(
 # replace pc columns with percentages
 spend_iterations_melt[c('pc', 'pc_cat1', 'pc_cat2')] <- new_pc
 
-
-# 5.2.2. calcs for pie ch ===================================================================================
-# take the tranpose of spend_final to put in long format
-spend_final <- spend_iterations_melt[spend_iterations_melt$totalSpend == total_budget, ]
-spend_final <- spend_final[order(spend_final$investment), ]
-
-# assign cat1 and cat2 colours for each row so colours can be displayed correctly
-pieColours_cat1 <- colours_cat1
-names(pieColours_cat1) <- levels(spend_final$cat1)
-spend_final$colours_cat1 <- pieColours_cat1[match(spend_final$cat1, names(pieColours_cat1))]
-
-pieColours_cat2 <- colours_cat2
-names(pieColours_cat2) <- levels(spend_final$cat2)
-spend_final$colours_cat2 <- pieColours_cat2[match(spend_final$cat2, names(pieColours_cat2))]
-
-# use separate data for cat1 and cat2, order by category level
-spend_final_cat1 <- aggregate(data=spend_final, investmentSpend~cat1+pc_cat1, FUN=sum)
-spend_final_cat1 <- spend_final_cat1[order(spend_final_cat1$cat1), ]
-
-spend_final_cat2 <- aggregate(data=spend_final, investmentSpend~cat2+pc_cat2, FUN=sum)
-spend_final_cat2 <- spend_final_cat2[order(spend_final_cat2$cat2), ]
 
 # 5.3. plot charts ==========================================================================================
 # 5.3.1. stacked charts =====================================================================================
@@ -227,86 +229,66 @@ stacked_ch <- plot_ly(spend_iterations_melt, x = ~totalSpend, y = ~investmentSpe
          annotations = list(watermark),
          updatemenus = list(menu_stacked))
 
-stacked_ch
+# stacked_ch
 
-# 5.2.2. pie charts ======================================================================================
-# menu where user can navigate across categories
-menu_pie <- list(
-  type = "buttons",
-  direction = "down",
-  xanchor = 'right',
-  yanchor = "top",
-  bgcolor='white',
-  font=list(color='grey'),
-  pad = list('r'= 0, 't'= 10, 'b' = 10),
-  x = 0.1,
-  y = 0.969,
-  buttons = list(
-    
-    list(method = "restyle",
-         args = list("visible", list(T,F,F)),
-         label = "All Categories"),
-    
-    list(method = "restyle",
-         args = list("visible", list(F,T,F)),
-         label = "Subcategory 1"),
-    
-    list(method = "restyle",
-         args = list("visible", list(F,F,T)),
-         label = "Subcategory 2")
-  ))
 
-# custom title
-title_pie <- list(
-  x = '',
-  y = '',
-  text = paste('Optimal allocation for your budget of', prettyNum(total_budget, big.mark=',')),
-  textposition = 'outside',
-  xref = "paper",
-  yref = "paper",
-  showarrow = F,
-  font = list(color='grey', size=29)
-)
 
-# create set of stacked charts
-pie_ch <- plot_ly(spend_final, labels = ~investment, values = ~investmentSpend, type = 'pie',
-                  textposition = 'inside',
-                  text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc),
-                  textinfo = 'text+label',
-                  insidetextfont = list(color='#FFFFFF'),
-                  hoverinfo = 'text+label',
-                  marker = list(colors=c(colours),
-                                line=list(color='#FFFFFF', width=1)),
-                  showlegend = F,
-                  visible = T) %>% 
-  add_trace(spend_final_cat1, labels = ~cat1, values = ~investmentSpend, type = 'pie',
-            textposition = 'inside',
-            text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat1),
-            textinfo = 'text+label',
-            insidetextfont = list(color='#FFFFFF'),
-            hoverinfo = 'text+label',
-            marker = list(
-              colors=spend_final$colours_cat1,
-              line=list(color='#FFFFFF', width=1)),
-            showlegend = F,
-            visible = F) %>% 
-  add_trace(spend_final_cat2, labels = ~cat2, values = ~investmentSpend, type = 'pie',
-            textposition = 'inside',
-            text = ~paste(paste(prettyNum(investmentSpend, big.mark=','), '<br>'), pc_cat2),
-            textinfo = 'text+label',
-            insidetextfont = list(color='#FFFFFF'),
-            hoverinfo = 'text+label',
-            marker = list(
-              colors=spend_final$colours_cat2,
-              line=list(color='#FFFFFF', width=1)),
-            showlegend = F,
-            visible = F) %>% 
-  layout(title = '',
-         titlefont = list(color='grey', size=100),
-         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-         hoverlabel = list(bordercolor='white', namelength=-1),
-         annotations = title_pie,
-         updatemenus = list(menu_pie))
+# summary table -----
 
-pie_ch
+# take the tranpose of spend_final to put in long format
+spend_final <- spend_iterations_melt[spend_iterations_melt$totalSpend == total_budget, ]
+spend_final <- spend_final[order(spend_final$investment), ]
+
+# take key columns for summary table
+summary_table <- spend_final[c('investment','cat1','cat2', 'investmentSpend')]
+
+# look up current return
+summary_table <- merge(summary_table, cumRet_melt, by.x=c('investment','investmentSpend'), by.y=c('variable','spend'), all.x = TRUE)
+
+# order back to orginal
+summary_table <- summary_table[order(summary_table$investment), ]
+
+# add current spend and return
+summary_table <- cbind(summary_table, currentSpend=dt$Current.Spend, currentReturn=dt$Current.Return)
+
+# add optimal spend
+summary_table$spendUpTo <- sapply(1:nrow(summary_table), function(x) {
+  approx(marRet[, summary_table$investment[x]], unique(marRet_melt$spend), xout=0)$y
+})
+
+# convert to factors to charcters for binding
+summary_table$investment <- as.character(summary_table$investment)
+summary_table$cat1 <- as.character(summary_table$cat1)
+summary_table$cat2 <- as.character(summary_table$cat2)
+
+# list of total values
+total <- list()
+for(i in 1:ncol(summary_table)) {
+  if(sapply(summary_table, is.numeric)[i]) {
+    total[[i]] <- sum(summary_table[i], na.rm=T)
+  } else {
+    total[[i]] <- 'Total'
+  }
+}
+
+# add total as a row
+total <- data.frame(total, stringsAsFactors = F)
+colnames(total) <- colnames(summary_table)
+summary_table <- rbind(summary_table, total)
+
+# add ROIs
+summary_table$currentROI <- summary_table$currentReturn / summary_table$currentSpend
+summary_table$newROI <- summary_table$value / summary_table$investmentSpend
+
+# add % change
+summary_table$spendChange <- (summary_table$investmentSpend - summary_table$currentSpend) / summary_table$currentSpend
+summary_table$returnChange <- (summary_table$value - summary_table$currentReturn) / summary_table$currentReturn
+summary_table$ROIChange <- (summary_table$newROI - summary_table$currentROI) / summary_table$currentROI
+
+# order columns
+summary_table <- summary_table[c('investment', 'cat1', 'cat2',
+                                 'currentSpend', 'investmentSpend', 'spendChange',
+                                 'currentReturn', 'value', 'returnChange',
+                                 'currentROI','newROI','ROIChange','spendUpTo')]
+
+
