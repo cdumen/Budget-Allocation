@@ -1,20 +1,19 @@
-# custom functions
+# custom functions that are too long / used too often to incorporate into the main script
 
-#------------------------------------------------------------------------------------------
+
+# create curves ----
 # function to generate:
 # 1. cumulative returns
 # 2. marginal returns
 # for a series of given spend
-#------------------------------------------------------------------------------------------
-# PACKAGE DEPENDENCIES: none
-# FUNCTION DEPENDENCIES: none
-# ARGUMENTS:
+
 # {product_minSpend}: a vector minimum spends for investments
 # {total_budget}: an integer which specifies how much to spend in total
 # {alpha}: a vector of values that determines how quickly diminishing return is reached
 #         (i.e. the 'steepness' of the curve)
 # {beta}: a vector of values to ensure that response values correspond to current returns
 #         (i.e. a scalar that 'stretches' curve)
+# {increment}: a scalar that determines how much the spend goes up by
 
 createCurves <- function(product_minSpend, total_budget, alpha, beta, increment) {
   
@@ -38,25 +37,24 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta, increment)
   return(output)
 }
 
-# -------------------------------------------------------------------------------
+
+# budget allocation ----
 # function to allocate budget across multiple investment based on their returns
 # method used here is a step by step allocation in increments
 # at each step, we check which investment gives the highest marginal return
 # and allocate an increment of the spend to it
 # process continues until we reach the total_budget
-# -------------------------------------------------------------------------------
-# PACKAGE DEPENDENCIES: none
-# FUNCTION DEPENDENCIES: none
-# ARGUMENTS:
+
 # {df}: a dataframe which must contain: 
-# "Investment" (ID of investments)
-# "Category1" (category of investment)
-# "Category2" (sub-category of investment)
-# "Minimum.Budget"
-# "Maximum.Budget"
+  # "Investment" (ID of investments)
+  # "Category1" (category of investment)
+  # "Category2" (sub-category of investment)
+  # "Minimum.Budget"
+  # "Maximum.Budget"
 # {marRet}: a dataframe of marginal returns of investments
 # (columns as investment and rows as spend)
 # {total_budget}: an integer which specifies how much to spend in total
+# {increment}: a scalar that determines how much the spend goes up by
 
 budgetAllocation <- function(df, marRet, total_budget, increment) {
   
@@ -133,10 +131,30 @@ budgetAllocation <- function(df, marRet, total_budget, increment) {
 }
 
 
-# -------------------------------------------------------------------------------
+# colour palette ----
+# RColorBrewer limits the number of distinct colours allowed for a given colour palette
+# function generates additional colours complimentary to selected palette
+
+# {theme}: name (in string) of RColorBrewer palette
+# n: number of distinct colours we want to generate
+
 genColours <- function(theme, n) {
   theme_colours <-  brewer.pal(8,name=theme)
   n_colours <- colorRampPalette(theme_colours)
   colours <- n_colours(n)
   return(colours)
+}
+
+
+# round dataframe ----
+# function picks out all numeric columns in a dataframe
+# and rounds them up to the number of decimal places given
+
+# {df}: dataframe of interest
+# {digits}: integer which indicates no. of decimal places
+
+round_df <- function(df, digits) {
+  numeric_cols <- sapply(df, is.numeric)
+  df[numeric_cols] <- round(df[numeric_cols], digits)
+  df
 }

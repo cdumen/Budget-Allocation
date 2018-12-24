@@ -140,3 +140,10 @@ genColours <- function(theme, n) {
   colours <- n_colours(n)
   return(colours)
 }
+
+# -------------------------------------------------------------------------------
+round_df <- function(df, digits) {
+  numeric_cols <- sapply(df, is.numeric)
+  df[numeric_cols] <- round(df[numeric_cols], digits)
+  df
+}
