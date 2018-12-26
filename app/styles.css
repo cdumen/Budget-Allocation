@@ -119,6 +119,34 @@
     font-weight:normal;
 }
 
+.btn.next{
+    background:transparent;
+    border: none !important;
+    color:#4b84ce;
+    font-size:16px;
+    text-decoration:underline;
+}
+
+.btn.next:hover{
+    text-decoration:underline;
+    font-weight:bold;
+}
+
+.btn.back{
+    background:transparent;
+    border: none !important;
+    color:#4b84ce;
+    margin-left:100px;
+    font-size:16px;
+    text-decoration:underline;
+}
+
+.btn.back:hover{
+    text-decoration:underline;
+    font-weight:bold;
+}
+
+
 .total_budget{
     width:1px;
 }
@@ -233,3 +261,9 @@ lw{
     font-weight:lighter !important;
 }
 
+
+.formattable_widget.html-widget.html-widget-output.shiny-bound-output{
+    width:1100px !important;
+    margin-left:130px;
+    margin-top:0px;
+}

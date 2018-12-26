@@ -52,7 +52,7 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta, increment)
   # "Minimum.Budget"
   # "Maximum.Budget"
 # {marRet}: a dataframe of marginal returns of investments
-# (columns as investment and rows as spend)
+  # (columns as investment and rows as spend)
 # {total_budget}: an integer which specifies how much to spend in total
 # {increment}: a scalar that determines how much the spend goes up by
 
@@ -158,3 +158,13 @@ round_df <- function(df, digits) {
   df[numeric_cols] <- round(df[numeric_cols], digits)
   df
 }
+
+
+# format dataframe ----
+# function applies number formatting to currency / percentages
+# and makes table look pretty
+
+# {df}: dataframe of interest
+# {accounting}: vector of the names of spend/return columns
+# {ROI}: vector of the names of ROI columns
+# {percent}: vector of the names of percentages columns

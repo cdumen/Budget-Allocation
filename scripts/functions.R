@@ -147,3 +147,75 @@ round_df <- function(df, digits) {
   df[numeric_cols] <- round(df[numeric_cols], digits)
   df
 }
+
+# -------------------------------------------------------------------------------
+
+format_df <- function(df, accounting, ROI, percent) {
+  
+  # don't show row names
+  rownames(df) <- NULL
+  
+  # replace all ' ' in column names with '<br>'
+  colnames(df)[-length(df)] <- gsub(' ', '<br>', colnames(df)[-length(df)])
+  accounting[-length(accounting)] <- gsub(' ', '<br>', accounting[-length(accounting)])
+  ROI <- gsub(' ', '<br>', ROI)
+  percent <- gsub(' ', '<br>', percent)
+  
+  # set width of table for equal sized colour bar columns
+  fixedWidth <-  100
+
+  # apply the relevant colour and font formatting
+  formatted_df <-   formattable(df, align=c('r','r','r','l','r','r','l','r','r','l','r'), list(
+    
+    # spend / return format
+    area(row=1:nrow(df)-1, col=accounting) ~ formatter(
+      'span',
+      x ~ accounting(x),
+      style = x ~ style(display = "inline-block",
+                        direction = "rtl", `border-radius` = "4px", `padding-right` = "2px",
+                        `background-color` = csscolor("#b7cdeb")
+                        , width = paste(fixedWidth*proportion(x),"px",sep=""))
+    ),
+    
+    # ROI format
+    area(col = ROI) ~ formatter(
+      'span',
+      x ~ accounting(x),
+      style = x ~ style(display = "block", 
+                        padding = "0 4px", `border-radius` = "4px", 
+                        `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')), width='80px')
+    ),
+    
+    # percentages format
+    area(col = percent) ~ formatter(
+      'span',
+      style = x ~ style(color = ifelse(x < 0 , "#ff9999", "#77dd77")),
+      x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
+    ),
+    
+    # total row format: investment
+    area(row=nrow(df), col=1) ~ formatter(
+      'span',
+      style = x ~ style(font.weight='bold')
+    ),
+    
+    # total row format: spend / return / ROI
+    area(row=nrow(df), col=c(accounting, ROI)) ~ formatter(
+      'span',
+      style = x ~ style(font.weight='bold'),
+      x ~ accounting(x)
+    ),
+    
+    # total row format: percentages
+    area(row=nrow(df), col=percent) ~ formatter(
+      'span',
+      style = x ~ style(color = ifelse(x < 0 , "#ff8080", "#63d863"), font.weight='bold'),
+      x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
+    )
+    
+  ) # list
+  ) # formattable
+  
+  return(formatted_df)
+  
+}

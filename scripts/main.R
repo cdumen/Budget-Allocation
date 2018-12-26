@@ -19,6 +19,9 @@ suppressMessages(library(ggrepel))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(plotly))
 
+suppressMessages(library(formattable))
+
+
 # 2. inputs =======================================================================================================
 total_budget <- 963698
 
@@ -232,7 +235,7 @@ stacked_ch <- plot_ly(spend_iterations_melt, x = ~totalSpend, y = ~investmentSpe
 
 
 
-# summary table -----
+# summary tables -----
 
 # take the tranpose of spend_final to put in long format
 spend_final <- spend_iterations_melt[spend_iterations_melt$totalSpend == total_budget, ]
@@ -285,9 +288,6 @@ summary_table$returnChange <- (summary_table$value - summary_table$currentReturn
 summary_table$ROIChange <- (summary_table$newROI - summary_table$currentROI) / summary_table$currentROI
 
 
-# allow only up to two decimal places
-summary_table <- round_df(summary_table, 2)
-
 # order columns
 summary_table <- summary_table[c('investment', 'cat1', 'cat2',
                                  'currentSpend', 'investmentSpend', 'spendChange',
@@ -296,9 +296,9 @@ summary_table <- summary_table[c('investment', 'cat1', 'cat2',
 
 # rename columns
 colnames(summary_table) <- c('Investment', 'Group 1', 'Group 2', 
-                             'Current Spend', 'New Spend', '% Spend Change',
-                             'Current Return', 'New Return', '% Return Change',
-                             'Current ROI', 'New ROI', '% ROI Change', 'Spend Up To')
+                             'Current Spend', 'New Spend', 'Spend Change',
+                             'Current Return', 'New Return', 'Return Change',
+                             'Current ROI', 'New ROI', 'ROI Change', 'Spend Up To')
 
 
 # summary table - all ----
@@ -307,6 +307,8 @@ summary_table_all[c('Group 1', 'Group 2')] <- NULL
 
 # convert NAs in 'Spend Up To' column to 0
 summary_table_all[is.na(summary_table_all$`Spend Up To`), 'Spend Up To'] <- 0
+
+# format table
 
 
 # summary table - group 1 ----
@@ -324,15 +326,16 @@ summary_table_cat1[, `Current ROI` := `Current Return` / `Current Spend`]
 summary_table_cat1[, `New ROI` := `New Return` / `New Spend`]
 
 # correct the percentages
-summary_table_cat1[, `% Spend Change` := (`New Spend` - `Current Spend`) / `Current Spend`]
-summary_table_cat1[, `% Return Change` := (`New Return` - `Current Return`) / `Current Return`]
-summary_table_cat1[, `% ROI Change` := (`New ROI` - `Current ROI`) / `Current ROI`]
+summary_table_cat1[, `Spend Change` := (`New Spend` - `Current Spend`) / `Current Spend`]
+summary_table_cat1[, `Return Change` := (`New Return` - `Current Return`) / `Current Return`]
+summary_table_cat1[, `ROI Change` := (`New ROI` - `Current ROI`) / `Current ROI`]
 
 # convert back to data.frame
 summary_table_cat1 <- data.frame(summary_table_cat1, check.names = F)
 
-# round to 2 decimal place
-summary_table_cat1 <- round_df(summary_table_cat1, 2)
+# format table
+format_df(summary_table_cat1, accounting=c('Current Spend', 'New Spend', 'Current Return', 'New Return', 'Current ROI', 'New ROI', 'Spend Up To'), 
+          percent=c('Spend Change', 'Return Change', 'ROI Change'))
 
 
 # summary table - group 2 ----
@@ -350,12 +353,16 @@ summary_table_cat2[, `Current ROI` := `Current Return` / `Current Spend`]
 summary_table_cat2[, `New ROI` := `New Return` / `New Spend`]
 
 # correct the percentages
-summary_table_cat2[, `% Spend Change` := (`New Spend` - `Current Spend`) / `Current Spend`]
-summary_table_cat2[, `% Return Change` := (`New Return` - `Current Return`) / `Current Return`]
-summary_table_cat2[, `% ROI Change` := (`New ROI` - `Current ROI`) / `Current ROI`]
+summary_table_cat2[, `Spend Change` := (`New Spend` - `Current Spend`) / `Current Spend`]
+summary_table_cat2[, `Return Change` := (`New Return` - `Current Return`) / `Current Return`]
+summary_table_cat2[, `ROI Change` := (`New ROI` - `Current ROI`) / `Current ROI`]
 
 # convert back to data.frame
 summary_table_cat2 <- data.frame(summary_table_cat2, check.names = F)
 
 # round to 2 decimal place
 summary_table_cat2 <- round_df(summary_table_cat2, 2)
+
+# drop summary_table dataframe
+rm(summary_table)
+

@@ -19,6 +19,7 @@ suppressMessages(library(directlabels)) # uninstall
 suppressMessages(library(ggrepel))
 suppressMessages(library(RColorBrewer))
 suppressMessages(library(plotly))
+suppressMessages(library(formattable))
 
 # suppressMessages(library(shiny))
 
@@ -284,10 +285,6 @@ summary_table$spendChange <- (summary_table$investmentSpend - summary_table$curr
 summary_table$returnChange <- (summary_table$value - summary_table$currentReturn) / summary_table$currentReturn
 summary_table$ROIChange <- (summary_table$newROI - summary_table$currentROI) / summary_table$currentROI
 
-
-# allow only up to two decimal places
-summary_table <- round_df(summary_table, 2)
-
 # order columns
 summary_table <- summary_table[c('investment', 'cat1', 'cat2',
                                  'currentSpend', 'investmentSpend', 'spendChange',
@@ -299,6 +296,9 @@ colnames(summary_table) <- c('Investment', 'Group 1', 'Group 2',
                              'Current Spend', 'New Spend', '% Spend Change',
                              'Current Return', 'New Return', '% Return Change',
                              'Current ROI', 'New ROI', '% ROI Change', 'Spend Up To')
+
+# remove rownames
+rownames(summary_table) <- NULL
 
 
 # summary table - all ----
@@ -331,9 +331,6 @@ summary_table_cat1[, `% ROI Change` := (`New ROI` - `Current ROI`) / `Current RO
 # convert back to data.frame
 summary_table_cat1 <- data.frame(summary_table_cat1, check.names = F)
 
-# round to 2 decimal place
-summary_table_cat1 <- round_df(summary_table_cat1, 2)
-
 
 # summary table - group 2 ----
 # convert to data.table for easier manipulation
@@ -356,9 +353,6 @@ summary_table_cat2[, `% ROI Change` := (`New ROI` - `Current ROI`) / `Current RO
 
 # convert back to data.frame
 summary_table_cat2 <- data.frame(summary_table_cat2, check.names = F)
-
-# round to 2 decimal place
-summary_table_cat2 <- round_df(summary_table_cat2, 2)
 
 # drop summary_table dataframe
 rm(summary_table)
