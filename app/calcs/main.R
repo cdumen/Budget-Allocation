@@ -52,8 +52,8 @@ suppressWarnings(dt$Category2[dt$Category2 == ''] <- 'Ungrouped')
 
 # define the alpha that will determine the steepness of the curve (i.e. how quickly we hit dimishing returns)
 # usually this would be (spend/week)*weeks_covered, unless user specifies the diminishing returns spend
-dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return), 
-                                   (Current.Spend/Weeks) * weeks_covered, 
+dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return),
+                                   (Current.Spend/Weeks) * weeks_covered,
                                    Diminishing.Return))
 
 # define beta that will stretch the curve so that it crosses our current spend and return point
@@ -78,7 +78,6 @@ for(i in 1:nrow(dt)) {
   spend_i <- cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend']
   cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend'] <- spend_i + dt[i, 'Minimum.Budget']
 }
-
 #-------------------------------------------------------------------------------------
 # plot curves - atm there are too many curves, may have to run this on smaller dataset
 ggplot(cumRet_melt, aes(x=spend, y=value)) +
@@ -292,7 +291,7 @@ summary_table <- summary_table[c('investment', 'cat1', 'cat2',
                                  'currentROI','newROI','ROIChange','spendUpTo')]
 
 # rename columns
-colnames(summary_table) <- c('Investment', 'Group 1', 'Group 2', 
+colnames(summary_table) <- c('Investment', 'Group 1', 'Group 2',
                              'Current Spend', 'New Spend', '% Spend Change',
                              'Current Return', 'New Return', '% Return Change',
                              'Current ROI', 'New ROI', '% ROI Change', 'Spend Up To')
@@ -356,7 +355,6 @@ summary_table_cat2 <- data.frame(summary_table_cat2, check.names = F)
 
 # drop summary_table dataframe
 rm(summary_table)
-
 
 
 end_time <- Sys.time()

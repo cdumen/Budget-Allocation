@@ -4,9 +4,9 @@ library(shiny)
 library(data.table)
 library(DT)
 library(plotly)
-library(shinycssloaders)
 library(shinyalert)
 library(formattable)
+library(shinyjs)
 
 # disable the scientific formatting of numbers
 options(scipen = 999)
@@ -16,6 +16,9 @@ ui <-  fluidPage(
   
   # theme <- 'bootstrap.css',
   includeCSS("styles.css"),
+  
+  # link style.css to shiny for loader to work for each session
+  shinyjs::hidden(div(id = 'loader', tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")))),
   
   # set up shinyalert
   useShinyalert(),
@@ -88,60 +91,7 @@ ui <-  fluidPage(
                   
                            ) # mainPanel
                     ) # siderbarLayout
-              ), # tabPanel 
-    
-    # tabs: summary ----
-    tabPanel('Summary', mainPanel(selectInput('group', label=div(('Select Group:'), style='color:#4b84ce;font-weight:normal'), 
-                                              c('All', 'Group 1', 'Group 2'), width='12%'),
-                                  
-                                  # possible outputs (depending on dropdown input)
-                                  conditionalPanel('input.group == "All"', formattableOutput('summary_table_all')),
-                                  conditionalPanel('input.group == "Group 1"', formattableOutput('summary_table_cat1')),
-                                  conditionalPanel('input.group == "Group 2"', formattableOutput('summary_table_cat2')),
-                                  
-                                  column(6, actionButton('back_summary', '<< Back to Input', class='back')),
-                                  column(6, actionButton('next_summary', 'Next: Cumulative Return >>', class='next'))
-
-                                  ) # mainPanel
-             ), # tabPanel
-    
-    # tabs: stacked chart ----
-    tabPanel('Allocation Process', sidebarLayout(position='left',
-                                   
-                                    # side panel: allocation process description ----
-                                    sidebarPanel(
-                                      h2('The allocation process', style='color:#DEB887;'),
-                                      
-                                      tags$hr(), tags$hr(), tags$hr(),
-                                      
-                                      p('Your budget is allocated using a step-by-step process.', 
-                                        style='font-size:18px;color:grey'),
-                                      
-                                      p('At each step, we increase the spend by a small increment and look at the return it gives 
-                                        (how we estimate the return is outlined in the Cumulative Return section).', 
-                                        style='font-size:18px;color:grey'),
-                                      
-                                      p('From this, we can calculate the return of investment (ROI) and the rate of return for the increase in spend (marginal return).', 
-                                        style='font-size:18px;color:grey'),
-                                      
-                                      p('We do this for every investment at each step for 1000 steps until we reach the total budget.', 
-                                        style='font-size:18px;color:grey'),
-                                      
-                                      tags$hr(), tags$hr(), tags$hr(),
-                                      
-                                      p('This chart shows how your budget is allocated and the optimal spend combinations every step of the way - 
-                                        hover over it to see which investments the colours corresponds to!', 
-                                        style='font-size:18px;color:#DEB887;font-style:italic;'),
-                                      
-                                      style='margin-top:40px;'
-                                      
-                                      ), # sidebarPanel
-                                   
-                                    # main panel: stacked ch ----
-                                    mainPanel(withSpinner(plotlyOutput('stacked_ch')))
-                                    
-                              ) # sidebarLayout
-             ) # tabPanel
+              ) # tabPanel 
     
   ) # tabsetPanel
 
@@ -150,10 +100,6 @@ ui <-  fluidPage(
 
 # server ----
 server <-  function(input, output, session) { 
-  
-  # hide non-input tabs by default
-  hideTab('navbar', 'Summary')
-  hideTab('navbar', 'Allocation Process')
   
   # refresh ----
   observeEvent(input$clear_all, {session$reload()})
@@ -424,11 +370,86 @@ server <-  function(input, output, session) {
   # allocate budget ----
   observeEvent(input$allocateButton, {
     
+    # remove non-input tabs
+    removeTab('navbar', 'Summary')
+    removeTab('navbar', 'Allocation Process')
+    
+    
+    # dynamic tabs: summary ----
+    insertTab(inputId = 'navbar', 
+              
+              tabPanel('Summary', mainPanel(selectInput('group', label=div(('Select Group:'), style='color:#4b84ce;font-weight:normal'), 
+                                                        c('All', 'Group 1', 'Group 2'), width='12%'),
+                                            
+                                            # possible outputs (depending on dropdown input)
+                                            conditionalPanel('input.group == "All"', formattableOutput('summary_table_all')),
+                                            conditionalPanel('input.group == "Group 1"', formattableOutput('summary_table_cat1')),
+                                            conditionalPanel('input.group == "Group 2"', formattableOutput('summary_table_cat2')),
+                                            
+                                            column(6, actionButton('back_summary', '<< Back to Input', class='back')),
+                                            column(6, actionButton('next_summary', 'Next: Cumulative Return >>', class='next'))
+                                            
+              ) # mainPanel
+              ), # tabPanel
+              
+              target = 'Input', position = 'after'
+              
+              ) # insertTab
+    
+    
+    # dynamic tabs: allocation process ----
+    insertTab(inputId = 'navbar',
+              
+              tabPanel('Allocation Process', sidebarLayout(position='left',
+                                                           
+                                                           # side panel: allocation process description ----
+                                                           sidebarPanel(
+                                                             h2('The allocation process', style='color:#DEB887;'),
+                                                             
+                                                             tags$hr(), tags$hr(), tags$hr(),
+                                                             
+                                                             p('Your budget is allocated using a step-by-step process.', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('At each step, we increase the spend by a small increment and look at the return it gives 
+                                                               (how we estimate the return is outlined in the Cumulative Return section).', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('From this, we can calculate the return of investment (ROI) and the rate of return for the increase in spend (marginal return).', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('We do this for every investment at each step for 1000 steps until we reach the total budget.', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             tags$hr(), tags$hr(), tags$hr(),
+                                                             
+                                                             p('This chart shows how your budget is allocated and the optimal spend combinations every step of the way - 
+                                                               hover over it to see which investments the colours corresponds to!', 
+                                                               style='font-size:18px;color:#DEB887;font-style:italic;'),
+                                                             
+                                                             style='margin-top:40px;'
+                                                             
+                                                           ), # sidebarPanel
+                                                           
+                                                           # main panel: stacked ch ----
+                                                           mainPanel(withSpinner(plotlyOutput('stacked_ch')))
+                                                           
+                                                             ) # sidebarLayout
+              ), # tabPanel
+              
+              target = 'Summary', position='after'
+              
+              ) # insertTab
+    
+    
     weeks_covered <- input$weeks_covered
     
     total_budget <- input$total_budget
     
-    dt <- data.frame(data$file)
+    # convert factors to characters in data$file
+    data$file[, c('Investment', 'Group1', 'Group2') := lapply(.SD, as.character), .SDcols=c('Investment', 'Group1', 'Group2')]
+    
+    dt <- as.data.frame(data$file, stringsAsFactors = FALSE)
     
     # error if no weeks covered input
     if(!is.numeric(weeks_covered)) {
@@ -450,42 +471,40 @@ server <-  function(input, output, session) {
           # call source of calculations
           source('calcs/main.R', local=TRUE)
           
-          # unhide tabs
-          showTab('navbar', 'Summary')
-          showTab('navbar', 'Allocation Process')
+        # }}}
           
           # direct user to the summary page
           updateTabsetPanel(session, 'navbar', 'Summary')
-          
-          
+
+
           # summary tables ----
-          
+
           #  columns we want to format
           accounting <-  c('Current Spend', 'New Spend', 'Current Return', 'New Return', 'Spend Up To')
           ROI <-  c('Current ROI', 'New ROI')
           percent <-  c('% Spend Change', '% Return Change', '% ROI Change')
-          
+
           # insert line breaks in column names
           colnames(summary_table_all)[-length(summary_table_all)] <- gsub(' ', '<br>', colnames(summary_table_all)[-length(summary_table_all)])
           colnames(summary_table_cat1)[2:(ncol(summary_table_cat1)-1)] <- gsub(' ', '<br>', colnames(summary_table_cat1)[2:(ncol(summary_table_cat1)-1)])
           colnames(summary_table_cat2)[2:(ncol(summary_table_cat2)-1)] <- gsub(' ', '<br>', colnames(summary_table_cat2)[2:(ncol(summary_table_cat2)-1)])
-          
+
           accounting[-length(accounting)] <- gsub(' ', '<br>', accounting[-length(accounting)])
           ROI <- gsub(' ', '<br>', ROI)
           percent <- gsub(' ', '<br>', percent)
-          
+
           # fix column widths
           fixedWidth <-  100
-          
-          
+
+
           # render table: summary all ----
           output$summary_table_all <- renderFormattable({
-            
+
             validate(need(input$group == 'All', message=F))
-            
+
             # apply formatting
             formattable(summary_table_all, align=c('r','r','r','l','r','r','l','c','c','l','r'), list(
-              
+
               # spend / return format
               area(row=1:nrow(summary_table_all)-1, col=accounting) ~ formatter(
                 'span',
@@ -495,57 +514,57 @@ server <-  function(input, output, session) {
                                   `background-color` = csscolor("#b7cdeb")
                                   , width = paste(fixedWidth*proportion(x),"px",sep=""))
               ),
-              
+
               # ROI format
               area(col = ROI) ~ formatter(
                 'span',
                 x ~ accounting(x),
-                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px", 
-                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')), 
+                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px",
+                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')),
                                   width=paste0(fixedWidth*0.6,'px'))
               ),
-              
+
               # percentages format
               area(col = percent) ~ formatter(
                 'span',
-                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")), 
+                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")),
                                   width=paste0(fixedWidth*0.5,'px')),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               ),
-              
+
               # total row format: investment
               area(row=nrow(summary_table_all), col=1) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold')
               ),
-              
+
               # total row format: spend / return / ROI
               area(row=nrow(summary_table_all), col=c(accounting, ROI)) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold'),
                 x ~ accounting(x)
               ),
-              
+
               # total row format: percentages
               area(row=nrow(summary_table_all), col=percent) ~ formatter(
                 'span',
                 style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff8080", "#63d863")), font.weight='bold'),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               )
-              
+
             ) # list
             ) # formattable
           }) # renderFormattable
-          
-          
+
+
           # render table: summary group 1 ----
           output$summary_table_cat1 <- renderFormattable({
-            
+
             validate(need(input$group == 'Group 1', message=F))
-            
+
             # apply formatting
             formattable(summary_table_cat1, align=c('r','r','r','l','r','r','l','c','c','l','r'), list(
-              
+
               # spend / return format
               area(row=1:nrow(summary_table_cat1)-1, col=accounting) ~ formatter(
                 'span',
@@ -555,57 +574,57 @@ server <-  function(input, output, session) {
                                   `background-color` = csscolor("#b7cdeb")
                                   , width = paste(fixedWidth*proportion(x),"px",sep=""))
               ),
-              
+
               # ROI format
               area(col = ROI) ~ formatter(
                 'span',
                 x ~ accounting(x),
-                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px", 
-                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')), 
+                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px",
+                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')),
                                   width=paste0(fixedWidth*0.6,'px'))
               ),
-              
+
               # percentages format
               area(col = percent) ~ formatter(
                 'span',
-                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")), 
+                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")),
                                   width=paste0(fixedWidth*0.5,'px')),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               ),
-              
+
               # total row format: investment
               area(row=nrow(summary_table_cat1), col=1) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold')
               ),
-              
+
               # total row format: spend / return / ROI
               area(row=nrow(summary_table_cat1), col=c(accounting, ROI)) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold'),
                 x ~ accounting(x)
               ),
-              
+
               # total row format: percentages
               area(row=nrow(summary_table_cat1), col=percent) ~ formatter(
                 'span',
                 style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff8080", "#63d863")), font.weight='bold'),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               )
-              
+
             ) # list
             ) # formattable
           }) # renderFormattable
-          
-          
+
+
           # render table: summary group 2 ----
           output$summary_table_cat2 <- renderFormattable({
-            
+
             validate(need(input$group == 'Group 2', message=F))
-            
+
             # apply formatting
             formattable(summary_table_cat2, align=c('r','r','r','l','r','r','l','c','c','l','r'), list(
-              
+
               # spend / return format
               area(row=1:nrow(summary_table_cat2)-1, col=accounting) ~ formatter(
                 'span',
@@ -615,52 +634,58 @@ server <-  function(input, output, session) {
                                   `background-color` = csscolor("#b7cdeb")
                                   , width = paste(fixedWidth*proportion(x),"px",sep=""))
               ),
-              
+
               # ROI format
               area(col = ROI) ~ formatter(
                 'span',
                 x ~ accounting(x),
-                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px", 
-                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')), 
+                style = x ~ style(display = "inline-block", padding = "0 0px", `border-radius` = "4px",
+                                  `background-color` = csscolor(gradient(as.numeric(x), 'transparent','#ce954b')),
                                   width=paste0(fixedWidth*0.6,'px'))
               ),
-              
+
               # percentages format
               area(col = percent) ~ formatter(
                 'span',
-                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")), 
+                style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff9999", "#77dd77")),
                                   width=paste0(fixedWidth*0.5,'px')),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               ),
-              
+
               # total row format: investment
               area(row=nrow(summary_table_cat2), col=1) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold')
               ),
-              
+
               # total row format: spend / return / ROI
               area(row=nrow(summary_table_cat2), col=c(accounting, ROI)) ~ formatter(
                 'span',
                 style = x ~ style(font.weight='bold'),
                 x ~ accounting(x)
               ),
-              
+
               # total row format: percentages
               area(row=nrow(summary_table_cat2), col=percent) ~ formatter(
                 'span',
                 style = x ~ style(color = ifelse(is.na(x), 'transparent', ifelse(x < 0, "#ff8080", "#63d863")), font.weight='bold'),
                 x ~ icontext(ifelse(x < 0, "arrow-down", "arrow-up"), percent(abs(x), digits=1L))
               )
-              
+
             ) # list
             ) # formattable
           }) # renderFormattable
-          
-          
+
+
           # render table: allocation process ----
+          # show spinner while chart is rendering
+          shinyjs::showElement(id = 'loader')
+          # render chart
           output$stacked_ch <- renderPlotly(stacked_ch)
-          
+          # hide spinner
+          shinyjs::hideElement(id = 'loader')
+
+
         } # else: no investment deets
       } # else: no total budget
     } # else: no period covered
@@ -672,7 +697,6 @@ server <-  function(input, output, session) {
   # direct user to the cumulative return page on summary page
   observeEvent(input$back_summary, {updateTabsetPanel(session, 'navbar', 'Input')})
   observeEvent(input$next_summary, {updateTabsetPanel(session, 'navbar', 'Allocation Process')})
-  
   
   
 } # server end
