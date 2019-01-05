@@ -481,15 +481,27 @@ total_cumRet$totalReturn <- rowSums(total_cumRet[-1])
 # take only spend and cumulative return
 total_cumRet <- total_cumRet[c('totalSpend', 'totalReturn')]
 
+# net return
+total_cumRet$netReturn <- total_cumRet$totalReturn - total_cumRet$totalSpend
+
 # new total spend and return
 total_new <- summary_table_all[summary_table_all$Investment == 'Total', c('New Spend', 'New Return')]
 
+# add new net return
+total_new$`New Net Return` <- total_new$`New Return` - total_new$`New Spend`
+
 # plot chart
 plot_ly(data = total_cumRet, x = ~totalSpend, y = ~totalReturn, type = 'scatter', mode = 'lines', 
-        name = 'Total Return', line = list(color = '#4b84ce')) %>% 
+        name = 'Total Return', line = list(color = '#2d4f7b')) %>% 
   add_trace(x = total_new[1,1], y = total_new[1,2], mode = 'markers',
             line = list(color = 'white'),
             marker = list(size = 11, color = '#DEB887', line = list(color = 'white', width = 1)),
             name = 'New Return') %>% 
+  add_trace(data = total_cumRet, x = ~totalSpend, y = ~netReturn, type = 'scatter', mode = 'lines', 
+          name = 'Total Net Return', line = list(color = '#2d4f7b', dash='dash')) %>% 
+  add_trace(x = total_new[1,1], y = total_new[1,3], mode = 'markers',
+            line = list(color = 'white'),
+            marker = list(size = 9, color = 'white', line = list(color = '#DEB887', width = 2)),
+            name = 'New Net Return') %>% 
   layout(yaxis = list(title='Return', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'), 
          xaxis = list(title='Spend', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'))

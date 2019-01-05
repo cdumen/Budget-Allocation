@@ -398,7 +398,7 @@ menu_line <- list(
   font=list(color='#A9A9A9'),
   pad = list('r'= 0, 't'= 10, 'b' = 10),
   x = 0.5,
-  y = 1.05,
+  y = 1.07,
   buttons = list(
 
     list(method = "restyle",
@@ -438,7 +438,7 @@ menu_line <- list(
 # current dot annotation on chart
 current_dot <- list(
   x = 0.1,
-  y = 0.9,
+  y = 1,
   text = '<span style="font-size:20px;">•</span> shows current\n return / spend',
   xref = "paper",
   yref = "paper",
@@ -473,29 +473,39 @@ response_curves <- plot_ly(data = cumRet_melt, x = ~spend, y= ~value, type='scat
 # total response ----
 # retrieve record of cumulative return from earlier allocation
 total_cumRet <- allocation$cumRet
-print(head(cumRet))
-print(head(total_cumRet))
 
 # create total return column
 total_cumRet$totalReturn <- rowSums(total_cumRet[-1])
 
 # take only spend and cumulative return
 total_cumRet <- total_cumRet[c('totalSpend', 'totalReturn')]
-print(head(total_cumRet))
+
+# net return
+total_cumRet$netReturn <- total_cumRet$totalReturn - total_cumRet$totalSpend
 
 # new total spend and return
 total_new <- summary_table_all[summary_table_all$Investment == 'Total', c('New Spend', 'New Return')]
 
+# add new net return
+total_new$`New Net Return` <- total_new$`New Return` - total_new$`New Spend`
+
 # plot chart
 total_response <- plot_ly(data = total_cumRet, x = ~totalSpend, y = ~totalReturn, type = 'scatter', mode = 'lines', 
-                          name = 'Total Return', line = list(color = 'black')) %>% 
+                          name = 'Total Return', line = list(color = '#2d4f7b')) %>% 
   add_trace(x = total_new[1,1], y = total_new[1,2], mode = 'markers',
             line = list(color = 'white'),
             marker = list(size = 11, color = '#DEB887', line = list(color = 'white', width = 1)),
             name = 'New Return') %>% 
+  add_trace(data = total_cumRet, x = ~totalSpend, y = ~netReturn, type = 'scatter', mode = 'lines', 
+            name = 'Total Net Return', line = list(color = '#2d4f7b', dash='dash')) %>% 
+  add_trace(x = total_new[1,1], y = total_new[1,3], mode = 'markers',
+            line = list(color = 'white'),
+            marker = list(size = 9, color = 'white', line = list(color = '#DEB887', width = 2)),
+            name = 'New Net Return') %>% 
   layout(yaxis = list(title='Return', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'), 
          xaxis = list(title='Spend', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'),
          height = 600)
+
 
 
 end_time <- Sys.time()
