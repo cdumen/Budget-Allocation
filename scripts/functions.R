@@ -16,7 +16,7 @@
   # {beta}: a vector of values to ensure that response values correspond to current returns
   #         (i.e. a scalar that 'stretches' curve)
 
-createCurves <- function(product_minSpend, total_budget, alpha, beta) {
+createCurves <- function(product_minSpend, alpha, beta, max_curve) {
   
   output <- list()
   
@@ -25,7 +25,8 @@ createCurves <- function(product_minSpend, total_budget, alpha, beta) {
   beta <- as.numeric(beta)
   
   # Generate a chain of spends going up in "increment"
-  spend <- seq(from = product_minSpend, to = product_minSpend+total_budget, by = increment)
+  # spend <- seq(from = product_minSpend, to = product_minSpend+total_budget, by = increment)
+  spend <- seq(from = product_minSpend, max_curve, by = increment)
   
   # Calculate cumulative return for each spend
   output[["cumRet"]] <- beta*(1 - exp(-(spend/alpha)))
@@ -64,6 +65,10 @@ budgetAllocation <- function(df, marRet, total_budget) {
   cur_marRet <- as.numeric(marRet[1, ])
   names(cur_marRet) <- df$Investment
   
+  # current cumulative return
+  cur_cumRet <- rep(0, length(cur_marRet))
+  names(cur_cumRet) <- df$Investment
+  
   # row index of current marginal return
   cur_marRet_rowIndex <- rep(1, length(cur_marRet))
   # set the current max as 0
@@ -82,8 +87,9 @@ budgetAllocation <- function(df, marRet, total_budget) {
   # number of investment choices
   n_investments <- nrow(df)
   
-  # record marginal return and spend across all iterations
+  # record marginal return, cumulative return and spend across all iterations
   cur_marRet_iterations <- list()
+  cur_cumRet_iterations <- list()
   cur_spend_iterations <- list()
   
   # run allocation until we reach the total_budget
@@ -108,8 +114,9 @@ budgetAllocation <- function(df, marRet, total_budget) {
         cur_marRet_rowIndex[cur_investment] <- cur_marRet_rowIndex[cur_investment] + 1
         rowIndex <- cur_marRet_rowIndex[cur_investment]
 
-        # update the current marginal return
+        # update the current marginal and cumulative return
         cur_marRet[cur_investment] <- marRet[rowIndex, cur_investment]
+        cur_cumRet[cur_investment] <- cumRet[rowIndex, cur_investment]
         
         # if investment spend has now reached maximum, assign -Inf to all its marRet values
         if(cur_spend[cur_investment] == max_spend[cur_investment]) {cur_marRet[cur_investment] <- -Inf}
@@ -119,6 +126,7 @@ budgetAllocation <- function(df, marRet, total_budget) {
     }
     # store each iteration's marginal return and spend in the relevant lists
     cur_marRet_iterations[[i]] <- cur_marRet
+    cur_cumRet_iterations[[i]] <- cur_cumRet
     cur_spend_iterations[[i]] <- cur_spend
   }
   
@@ -126,9 +134,10 @@ budgetAllocation <- function(df, marRet, total_budget) {
   
   # convert lists to dataframe
   cur_marRet_iterations <- cbind(totalSpend, data.frame(do.call("rbind", cur_marRet_iterations)))
+  cur_cumRet_iterations <- cbind(totalSpend, data.frame(do.call("rbind", cur_cumRet_iterations)))
   cur_spend_iterations <- cbind(totalSpend, data.frame(do.call("rbind", cur_spend_iterations)))
   
-  output <- list(marRet=cur_marRet_iterations, spend=cur_spend_iterations)
+  output <- list(marRet=cur_marRet_iterations, cumRet=cur_cumRet_iterations, spend=cur_spend_iterations)
   return(output)
 }
 
@@ -219,3 +228,82 @@ format_df <- function(df, accounting, ROI, percent) {
   return(formatted_df)
   
 }
+
+
+
+# -------------------------------------------------------------------------------
+agg_rspCurves <- function(df, group, max_curve) {
+  
+  # make copy of dt and convert to datatable
+  dt_agg <- data.table(dt)
+  
+  # aggregate key metrics
+  dt_agg <- dt_agg[, .(sum(Current.Spend), sum(Current.Return), sum(Weeks), sum(Minimum.Budget), sum(Minimum.Budget), sum(Alpha), sum(Beta), .N), by=eval(group)]
+  
+  # assign names again to columns
+  colnames(dt_agg) <- c('Group', 'Current.Spend', 'Current.Return', 'Weeks', 'Minimum.Budget', 'Maximum.Budget', 'Alpha', 'Beta', 'Count')
+  
+  # recalibrate alpha
+  dt_agg[, Alpha := -(Current.Spend / log(1-(Current.Return/Beta)))]
+  
+  # convert back to dataframe
+  dt_agg <- data.frame(dt_agg)
+  
+  # create responsive curves
+  Curves_agg <- apply(dt_agg, 1, function(x) createCurves(x["Minimum.Budget"], alpha=x["Alpha"], beta=x["Beta"], max_curve))
+  
+  # compile response curves
+  cumRet_agg <- data.frame(lapply(1:length(Curves_agg), function(x) do.call("cbind", Curves_agg[[x]]["cumRet"])))
+  colnames(cumRet_agg) <- dt_agg$Group
+  
+  # melt data
+  cumRet_melt_agg <- cbind(spend=round(seq(0, max_curve, increment), digits=2), cumRet_agg)
+  cumRet_melt_agg <- melt(cumRet_melt_agg, id.vars = "spend")
+  
+  # convert group to factor
+  cumRet_melt_agg$variable <- factor(cumRet_melt_agg$variable, levels=unlist(unique(dt[group])))
+  
+  # order by factor (same ordering as original df)
+  cumRet_melt_agg <- cumRet_melt_agg[order(cumRet_melt_agg$variable), ]
+  
+  return(cumRet_melt_agg)
+  
+}
+
+# -------------------------------------------------------------------------------
+cur_spend_ret <- function(summary_table_names) {
+  
+  # list to store copies of the summary tables
+  summary_table_copy <- list()
+  
+  # loop through each summary table
+  for(i in 1:length(summary_table_names)) {
+    
+    # make a copy
+    summary_table_copy[[i]] <- eval(parse(text=summary_table_names[i]))
+    
+    # make colnames the same as first summary table
+    colnames(summary_table_copy[[i]]) <- colnames(summary_table_copy[[1]])
+    
+    # remove total row
+    summary_table_copy[[i]] <- summary_table_copy[[i]][-nrow(summary_table_copy[[i]]), ]
+    
+    # convert group to factor
+    summary_table_copy[[i]][, 1] <- factor(summary_table_copy[[i]][, 1], levels=summary_table_copy[[i]][, 1])
+    
+  }
+  
+  # bind all all the summary tables together
+  current <- do.call(rbind, summary_table_copy)
+  
+  # extract key columns
+  current <- current[c('Investment', 'Current Spend', 'Current Return')]
+  
+  # remove list
+  rm(summary_table_copy)
+  
+  return(current)
+  
+}
+
+

@@ -6,6 +6,7 @@ library(DT)
 library(plotly)
 library(shinyalert)
 library(formattable)
+library(shinycssloaders)
 library(shinyjs)
 
 # disable the scientific formatting of numbers
@@ -14,14 +15,17 @@ options(scipen = 999)
 # UI ----
 ui <-  fluidPage(
   
+  # set-ups ----
+  
   # theme <- 'bootstrap.css',
   includeCSS("styles.css"),
   
-  # link style.css to shiny for loader to work for each session
+  # link style.css to shiny for loader animation
   shinyjs::hidden(div(id = 'loader', tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")))),
   
   # set up shinyalert
   useShinyalert(),
+  
   
   # tabs ----
   navbarPage(title = div('Budget Allocator', style='color:#4b84ce;font-size:35px;width:300px;'), id='navbar',
@@ -90,7 +94,7 @@ ui <-  fluidPage(
                                          });")
                   
                            ) # mainPanel
-                    ) # siderbarLayout
+                    ) # sidebarLayout
               ) # tabPanel 
     
   ) # tabsetPanel
@@ -131,7 +135,7 @@ server <-  function(input, output, session) {
     if(input$investment == '' | is.na(input$cur_spend) | is.na(input$cur_ret) | is.na(input$weeks)) {
       
       # return error modal if fail criteria check
-      shinyalert('Missing/Invalid Input', 'Check that the fields "Investment", "Current Spend", "Current Return" and "Weeks" are filled in correctly.', type='error')
+      shinyalert('Missing/Invalid Input', "Check that the fields 'Investment', 'Current Spend', 'Current Return' and 'Weeks' are filled in correctly.", type='error')
       
     } else {
       
@@ -372,7 +376,9 @@ server <-  function(input, output, session) {
     
     # remove non-input tabs
     removeTab('navbar', 'Summary')
-    removeTab('navbar', 'Allocation Process')
+    removeTab('navbar', 'Response Curves')
+    removeTab('navbar', 'Total Response')
+    removeTab('navbar', 'Optimal Combos')
     
     
     # dynamic tabs: summary ----
@@ -387,7 +393,7 @@ server <-  function(input, output, session) {
                                             conditionalPanel('input.group == "Group 2"', formattableOutput('summary_table_cat2')),
                                             
                                             column(6, actionButton('back_summary', '<< Back to Input', class='back')),
-                                            column(6, actionButton('next_summary', 'Next: Cumulative Return >>', class='next'))
+                                            column(6, actionButton('next_summary', 'Next: Response Curves >>', class='next'))
                                             
               ) # mainPanel
               ), # tabPanel
@@ -397,14 +403,14 @@ server <-  function(input, output, session) {
               ) # insertTab
     
     
-    # dynamic tabs: allocation process ----
+    # dynamic tabs: response curves ----
     insertTab(inputId = 'navbar',
               
-              tabPanel('Allocation Process', sidebarLayout(position='left',
+              tabPanel('Response Curves', sidebarLayout(position='left',
                                                            
-                                                           # side panel: allocation process description ----
+                                                           # side panel: response curves description ----
                                                            sidebarPanel(
-                                                             h2('The allocation process', style='color:#DEB887;'),
+                                                             h2('The Optimal Combos', style='color:#DEB887;'),
                                                              
                                                              tags$hr(), tags$hr(), tags$hr(),
                                                              
@@ -427,17 +433,120 @@ server <-  function(input, output, session) {
                                                                hover over it to see which investments the colours corresponds to!', 
                                                                style='font-size:18px;color:#DEB887;font-style:italic;'),
                                                              
-                                                             style='margin-top:40px;'
+                                                             style='margin-top:0px;'
+                                                             
+                                                           ), # sidebarPanel
+                                                           
+                                                           # main panel: response curves ----
+                                                           mainPanel(withSpinner(plotlyOutput('response_curves')))
+                                                           
+                                                           ), # sidebarLayout
+                       
+                       column(6, actionButton('back_rspCurves', '<< Back to Summary', class='back2')),
+                       column(6, actionButton('next_rspCurves', 'Next: Total Response >>', class='next2'))
+                       
+                       
+              ), # tabPanel
+              
+              target = 'Summary', position='after'
+              
+  ) # insertTab
+    
+    
+    # dynamic tabs: total response ----
+    insertTab(inputId = 'navbar',
+              
+              tabPanel('Total Response', sidebarLayout(position='left',
+                                                        
+                                                        # side panel: total response description ----
+                                                        sidebarPanel(
+                                                          h2('The Optimal Combos', style='color:#DEB887;'),
+                                                          
+                                                          tags$hr(), tags$hr(), tags$hr(),
+                                                          
+                                                          p('Your budget is allocated using a step-by-step process.', 
+                                                            style='font-size:18px;color:grey'),
+                                                          
+                                                          p('At each step, we increase the spend by a small increment and look at the return it gives 
+                                                            (how we estimate the return is outlined in the Cumulative Return section).', 
+                                                            style='font-size:18px;color:grey'),
+                                                          
+                                                          p('From this, we can calculate the return of investment (ROI) and the rate of return for the increase in spend (marginal return).', 
+                                                            style='font-size:18px;color:grey'),
+                                                          
+                                                          p('We do this for every investment at each step for 1000 steps until we reach the total budget.', 
+                                                            style='font-size:18px;color:grey'),
+                                                          
+                                                          tags$hr(), tags$hr(), tags$hr(),
+                                                          
+                                                          p('This chart shows how your budget is allocated and the optimal spend Combos every step of the way - 
+                                                            hover over it to see which investments the colours corresponds to!', 
+                                                            style='font-size:18px;color:#DEB887;font-style:italic;'),
+                                                          
+                                                          style='margin-top:0px;'
+                                                          
+                                                        ), # sidebarPanel
+                                                        
+                                                        # main panel: total response ----
+                                                        mainPanel(withSpinner(plotlyOutput('total_response')))
+                                                        
+                                                          ), # sidebarLayout
+                       
+                       column(6, actionButton('back_rspTotal', '<< Back to Response Curves', class='back2')),
+                       column(6, actionButton('next_rspTotal', 'Next: Optimal Combos >>', class='next2'))
+                       
+                       
+              ), # tabPanel
+              
+              target = 'Response Curves', position='after'
+              
+  ) # insertTab
+    
+    
+    # dynamic tabs: optimal combos ----
+    insertTab(inputId = 'navbar',
+              
+              tabPanel('Optimal Combos', sidebarLayout(position='left',
+                                                           
+                                                           # side panel: optimal combos description ----
+                                                           sidebarPanel(
+                                                             h2('The Optimal Combos', style='color:#DEB887;'),
+                                                             
+                                                             tags$hr(), tags$hr(), tags$hr(),
+                                                             
+                                                             p('Your budget is allocated using a step-by-step process.', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('At each step, we increase the spend by a small increment and look at the return it gives 
+                                                               (how we estimate the return is outlined in the Cumulative Return section).', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('From this, we can calculate the return of investment (ROI) and the rate of return for the increase in spend (marginal return).', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             p('We do this for every investment at each step for 1000 steps until we reach the total budget.', 
+                                                               style='font-size:18px;color:grey'),
+                                                             
+                                                             tags$hr(), tags$hr(), tags$hr(),
+                                                             
+                                                             p('This chart shows how your budget is allocated and the optimal spend Combos every step of the way - 
+                                                               hover over it to see which investments the colours corresponds to!', 
+                                                               style='font-size:18px;color:#DEB887;font-style:italic;'),
+                                                             
+                                                             style='margin-top:0px;'
                                                              
                                                            ), # sidebarPanel
                                                            
                                                            # main panel: stacked ch ----
                                                            mainPanel(withSpinner(plotlyOutput('stacked_ch')))
                                                            
-                                                             ) # sidebarLayout
+                                                             ), # sidebarLayout
+                       
+                       column(6, actionButton('back_optCombo', '<< Back to Total Response', class='back2'))
+                       
               ), # tabPanel
               
-              target = 'Summary', position='after'
+              target = 'Total Response', position='after'
               
               ) # insertTab
     
@@ -446,27 +555,27 @@ server <-  function(input, output, session) {
     
     total_budget <- input$total_budget
     
-    # convert factors to characters in data$file
-    data$file[, c('Investment', 'Group1', 'Group2') := lapply(.SD, as.character), .SDcols=c('Investment', 'Group1', 'Group2')]
-    
-    dt <- as.data.frame(data$file, stringsAsFactors = FALSE)
-    
     # error if no weeks covered input
     if(!is.numeric(weeks_covered)) {
-      shinyalert("You forgot something!","Please enter 'Period Investments Covered'", type="error")
+      shinyalert("Oops!","'Period Investments Covered' is missing or the entry contains special characters (only numbers are allowed).", type="error")
       
     } else {
       # error if no total budget input
       if(!is.numeric(total_budget)) {
-        shinyalert("You forgot something!","Please enter 'Total Budget'", type="error")
+        shinyalert("Oops!","'Total Budget' is missing or the entry contains special characters (only numbers are allowed).", type="error")
         
       } else {
         
         # error if no investment details entered
-        if(nrow(dt)==0) {
-          shinyalert("You forgot something!","Please input investment details", type="error")
+        if(nrow(data$file)==0) {
+          shinyalert("You forgot something!","Please input investment details.", type="error")
           
         } else {
+          
+          # convert factors to characters in data$file
+          data$file[, c('Investment', 'Group1', 'Group2') := lapply(.SD, as.character), .SDcols=c('Investment', 'Group1', 'Group2')]
+          
+          dt <- as.data.frame(data$file, stringsAsFactors = FALSE)
           
           # call source of calculations
           source('calcs/main.R', local=TRUE)
@@ -565,6 +674,12 @@ server <-  function(input, output, session) {
             # apply formatting
             formattable(summary_table_cat1, align=c('r','r','r','l','r','r','l','c','c','l','r'), list(
 
+              # group 1 format
+              area(col='Group 1') ~ formatter(
+                'span',
+                style = x ~ style(color = ifelse(x == 'Ungrouped', '#C0C0C0', 'black'))
+              ),
+
               # spend / return format
               area(row=1:nrow(summary_table_cat1)-1, col=accounting) ~ formatter(
                 'span',
@@ -625,6 +740,12 @@ server <-  function(input, output, session) {
             # apply formatting
             formattable(summary_table_cat2, align=c('r','r','r','l','r','r','l','c','c','l','r'), list(
 
+              # group 2 format
+              area(col='Group 2') ~ formatter(
+                'span',
+                style = x ~ style(color = ifelse(x == 'Ungrouped', '#C0C0C0', 'black'))
+              ),
+
               # spend / return format
               area(row=1:nrow(summary_table_cat2)-1, col=accounting) ~ formatter(
                 'span',
@@ -675,9 +796,27 @@ server <-  function(input, output, session) {
             ) # list
             ) # formattable
           }) # renderFormattable
-
-
-          # render table: allocation process ----
+          
+          
+          # render plot: reponse curves  ----
+          # show spinner while chart is rendering
+          shinyjs::showElement(id = 'loader')
+          # render chart
+          output$response_curves <- renderPlotly(response_curves)
+          # hide spinner
+          shinyjs::hideElement(id = 'loader')
+          
+          
+          # render plot: total reponse ----
+          # show spinner while chart is rendering
+          shinyjs::showElement(id = 'loader')
+          # render chart
+          output$total_response <- renderPlotly(total_response)
+          # hide spinner
+          shinyjs::hideElement(id = 'loader')
+          
+          
+          # render plot: optimal combos ----
           # show spinner while chart is rendering
           shinyjs::showElement(id = 'loader')
           # render chart
@@ -689,14 +828,25 @@ server <-  function(input, output, session) {
         } # else: no investment deets
       } # else: no total budget
     } # else: no period covered
-    
+
   }) # observeEvent: allocate
   
   
-  # summary: navigation buttons ----
-  # direct user to the cumulative return page on summary page
+  # navigation buttons ----
+  # on summary page
   observeEvent(input$back_summary, {updateTabsetPanel(session, 'navbar', 'Input')})
-  observeEvent(input$next_summary, {updateTabsetPanel(session, 'navbar', 'Allocation Process')})
+  observeEvent(input$next_summary, {updateTabsetPanel(session, 'navbar', 'Response Curves')})
+  
+  # on response curves page
+  observeEvent(input$back_rspCurves, {updateTabsetPanel(session, 'navbar', 'Summary')})
+  observeEvent(input$next_rspCurves, {updateTabsetPanel(session, 'navbar', 'Total Response')})
+  
+  # on total response page
+  observeEvent(input$back_rspTotal, {updateTabsetPanel(session, 'navbar', 'Response Curves')})
+  observeEvent(input$next_rspTotal, {updateTabsetPanel(session, 'navbar', 'Optimal Combos')})
+  
+  # on optimal combos page
+  observeEvent(input$back_optCombo, {updateTabsetPanel(session, 'navbar', 'Total Response')})
   
   
 } # server end

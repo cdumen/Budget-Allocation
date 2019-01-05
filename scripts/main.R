@@ -23,7 +23,7 @@ suppressMessages(library(formattable))
 
 
 # 2. inputs =======================================================================================================
-total_budget <- 963698
+total_budget <- 200000
 
 weeks_covered <- 52
   
@@ -59,11 +59,15 @@ dt <- transform(dt, Alpha = ifelse(is.na(Diminishing.Return),
 # beta is also the value that the curves is capped at
 dt$Beta <- dt$Current.Return / (1-exp(-dt$Current.Spend/dt$Alpha))
 
+# determine where we want the curves to cut off
+# max_curve <- max(total_budget, dt$Current.Spend)
+max_curve <- (max(total_budget, 
+                 dt$Current.Spend,
+                 aggregate(data=dt, Current.Spend~Category1, FUN=sum)$Current.Spend, 
+                 aggregate(data=dt, Current.Spend~Category2, FUN=sum)$Current.Spend)) + increment
 
-
-# CHANGE ------
 # run function that will generate output that contains both the cumulative response and marginal response 
-Curves <- apply(dt, 1, function(x) createCurves(x["Minimum.Budget"], total_budget, alpha=x["Alpha"], beta=x["Beta"]))
+Curves <- apply(dt, 1, function(x) createCurves(x["Minimum.Budget"], alpha=x["Alpha"], beta=x["Beta"], max_curve))
 
 # compile all cumulative response curves
 cumRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["cumRet"])))
@@ -71,7 +75,7 @@ colnames(cumRet) <- dt$Investment
 
 # melt data for graphing purposes
 cumRet <- round(cumRet, digits=2)
-cumRet_melt <- cbind(spend=round(seq(0, total_budget, increment), digits=2), cumRet)
+cumRet_melt <- cbind(spend=round(seq(0, max_curve, increment), digits=2), cumRet)
 cumRet_melt <- melt(cumRet_melt, id.vars = "spend")
 
 # add minimum spend
@@ -80,17 +84,21 @@ for(i in 1:nrow(dt)) {
   cumRet_melt[cumRet_melt$variable == unique(dt$Investment)[i], 'spend'] <- spend_i + dt[i, 'Minimum.Budget']
 }
 
-# plot curves - atm there are too many curves, may have to run this on smaller dataset
-ggplot(cumRet_melt, aes(x=spend, y=value)) +
-  geom_line(aes(group=variable, color=variable), show.legend = FALSE) +
-  theme_minimal()
+# # plot curves - atm there are too many curves, may have to run this on smaller dataset
+# ggplot(cumRet_melt, aes(x=spend, y=value)) +
+#   geom_line(aes(group=variable, color=variable), show.legend = FALSE) +
+#   theme_minimal()
+
+
 
 # compile all marginal response curves
+
 marRet <- data.frame(lapply(1:length(Curves), function(x) do.call("cbind", Curves[[x]]["marRet"])))
 colnames(marRet) <- dt$Investment
 
 # melt data
-marRet_melt <- cbind(spend=round(seq(increment, total_budget, increment), digits=2), marRet)
+marRet_melt <- cbind(spend=round(seq(increment, max_curve, increment), digits=2), marRet)
+# marRet_melt <- cbind(spend=round(seq(increment, max(total_budget, dt$Current.Spend), increment), digits=2), marRet)
 marRet_melt <- melt(marRet_melt, id.vars = "spend")
 
 # 4. spend allocation =======================================================================================
@@ -234,7 +242,6 @@ stacked_ch <- plot_ly(spend_iterations_melt, x = ~totalSpend, y = ~investmentSpe
 # stacked_ch
 
 
-
 # summary tables -----
 
 # take the tranpose of spend_final to put in long format
@@ -244,7 +251,7 @@ spend_final <- spend_final[order(spend_final$investment), ]
 # take key columns for summary table
 summary_table <- spend_final[c('investment','cat1','cat2', 'investmentSpend')]
 
-# look up current return
+# look up new return
 summary_table <- merge(summary_table, cumRet_melt, by.x=c('investment','investmentSpend'), by.y=c('variable','spend'), all.x = TRUE)
 
 # order back to orginal
@@ -334,8 +341,8 @@ summary_table_cat1[, `ROI Change` := (`New ROI` - `Current ROI`) / `Current ROI`
 summary_table_cat1 <- data.frame(summary_table_cat1, check.names = F)
 
 # format table
-format_df(summary_table_cat1, accounting=c('Current Spend', 'New Spend', 'Current Return', 'New Return', 'Current ROI', 'New ROI', 'Spend Up To'), 
-          percent=c('Spend Change', 'Return Change', 'ROI Change'))
+# format_df(summary_table_cat1, accounting=c('Current Spend', 'New Spend', 'Current Return', 'New Return', 'Current ROI', 'New ROI', 'Spend Up To'), 
+#           percent=c('Spend Change', 'Return Change', 'ROI Change'))
 
 
 # summary table - group 2 ----
@@ -366,3 +373,123 @@ summary_table_cat2 <- round_df(summary_table_cat2, 2)
 # drop summary_table dataframe
 rm(summary_table)
 
+
+
+# line charts -------
+
+# create response curves for cat1 and cat2
+cumRet_melt_cat1 <- agg_rspCurves(dt, 'Category1', max_curve)
+cumRet_melt_cat2 <- agg_rspCurves(dt, 'Category2', max_curve)
+# add these to cumRet_melt
+cumRet_melt <- rbind(rbind(cumRet_melt, cumRet_melt_cat1), cumRet_melt_cat2)
+rm(cumRet_melt_cat1, cumRet_melt_cat2)
+
+# current spend and return
+current <- cur_spend_ret(summary_table_names = c('summary_table_all', 'summary_table_cat1', 'summary_table_cat2'))
+
+
+# charting: response curves plots ----
+
+# menu where user can navigate across categories
+menu_line <- list(
+  type = "buttons",
+  direction = "right",
+  xanchor = 'center',
+  yanchor = "top",
+  bgcolor='white',
+  font=list(color='#A9A9A9'),
+  pad = list('r'= 0, 't'= 10, 'b' = 10),
+  x = 0.5,
+  y = 1.01,
+  buttons = list(
+    
+    list(method = "restyle",
+         args = list("visible", c(rep(list(T), nInvestments),
+                                  rep(list(F), nInvestments_cat1),
+                                  rep(list(F), nInvestments_cat2),
+                                  rep(list(T), nInvestments),
+                                  rep(list(F), nInvestments_cat1),
+                                  rep(list(F), nInvestments_cat2),
+                                  rep(list(F), nInvestments),
+                                  rep(list(F), nInvestments))),
+         label = "All Investments"),
+    
+    list(method = "restyle",
+         args = list("visible", c(rep(list(F), nInvestments),
+                                  rep(list(T), nInvestments_cat1),
+                                  rep(list(F), nInvestments_cat2),
+                                  rep(list(F), nInvestments),
+                                  rep(list(T), nInvestments_cat1),
+                                  rep(list(F), nInvestments_cat2),
+                                  rep(list(F), nInvestments),
+                                  rep(list(F), nInvestments))),
+         label = "Group 1"),
+    
+    list(method = "restyle",
+         args = list("visible", c(rep(list(F), nInvestments),
+                                  rep(list(F), nInvestments_cat1),
+                                  rep(list(T), nInvestments_cat2),
+                                  rep(list(F), nInvestments),
+                                  rep(list(F), nInvestments_cat1),
+                                  rep(list(T), nInvestments_cat2),
+                                  rep(list(F), nInvestments),
+                                  rep(list(F), nInvestments))),
+         label = "Group 2")
+  ))
+
+# current dot annotation on chart
+current_dot <- list(
+  x = 0.1,
+  y = 0.6,
+  text = '<span style="font-size:20px;">•</span> shows current\n return / spend',
+  xref = "paper",
+  yref = "paper",
+  showarrow = F,
+  font = list(color='#A9A9A9', size=12),
+  opacity = 0.5
+)
+
+# create set of line charts
+plot_ly(data = cumRet_melt, x = ~spend, y = ~value, type = 'scatter', mode = 'lines',
+        color = ~variable, colors = c(colours, colours_cat1, colours_cat2), 
+        visible=F) %>% 
+  add_trace(data = current, x = ~`Current Spend`, y = ~`Current Return`, mode='markers',
+            marker = list(size = 9, line = list(color = 'white', width = 1)),
+            color = ~Investment, showlegend=F) %>%
+  # for some reason defeault view only displays correctly if first layer is added again (not sure if there is a more elegant solution)
+  add_trace(data = cumRet_melt[cumRet_melt$variable %in% dt$Investment, ], x = ~spend, y = ~value, type = 'scatter', mode = 'lines',
+          color = ~variable, colors=c(colours, colours_cat1, colours_cat2),
+          visible=T) %>% 
+  add_trace(data = current[current$Investment %in% dt$Investment, ], x = ~`Current Spend`, y = ~`Current Return`, mode = 'markers',
+            marker = list(size = 9, line = list(color = 'white', width = 1)),
+            color = ~Investment, showlegend=F,
+            visible=T) %>%
+  layout(yaxis = list(title='Return', spikecolor='grey', spikethickness=0.1, spikedash='solid', showgrid=T, showline=F, hoverformat=',f'),
+         xaxis = list(title='Spend', spikecolor='grey', spikethickness=0.1, spikedash='solid', showgrid=T, showline=F, hoverformat=',f'),
+         hoverlabel = list(bordercolor='white', font=list(color='white'), namelength=-1),
+         updatemenus = list(menu_line),
+         annotations = list(current_dot))
+
+
+# total response ----
+# retrieve record of cumulative return from earlier allocation
+total_cumRet <- allocation$cumRet
+
+# create total return column
+total_cumRet$totalReturn <- rowSums(total_cumRet[-1])
+
+# take only spend and cumulative return
+total_cumRet <- total_cumRet[c('totalSpend', 'totalReturn')]
+
+# new total spend and return
+total_new <- summary_table_all[summary_table_all$Investment == 'Total', c('New Spend', 'New Return')]
+
+# plot chart
+plot_ly(data = total_cumRet, x = ~totalSpend, y = ~totalReturn, type = 'scatter', mode = 'lines', 
+        name = 'Total Return', line = list(color = '#4b84ce')) %>% 
+  add_trace(x = total_new[1,1], y = total_new[1,2], mode = 'markers',
+            line = list(color = 'white'),
+            marker = list(size = 11, color = '#DEB887', line = list(color = 'white', width = 1)),
+            name = 'New Return') %>% 
+  layout(yaxis = list(title='Return', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'), 
+         xaxis = list(title='Spend', spikecolor='grey', spikethickness=0.1, spikedash='solid', showspikes=T, showgrid=T, showline=F, hoverformat=',f'))

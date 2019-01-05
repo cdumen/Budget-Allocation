@@ -122,8 +122,10 @@
 .btn.next{
     background:transparent;
     border: none !important;
-    color:#4b84ce;
+    color:#BEBEBE;
     font-size:16px;
+    margin-top:55px;
+    margin-left:650px;
     text-decoration:underline;
 }
 
@@ -135,13 +137,45 @@
 .btn.back{
     background:transparent;
     border: none !important;
-    color:#4b84ce;
-    margin-left:100px;
+    color:#BEBEBE;
+    margin-top:55px;
+    margin-left:30px;
     font-size:16px;
     text-decoration:underline;
 }
 
 .btn.back:hover{
+    text-decoration:underline;
+    font-weight:bold;
+}
+
+
+.btn.next2{
+    background:transparent;
+    border: none !important;
+    color:#BEBEBE;
+    font-size:16px;
+    margin-top:10px;
+    margin-left:460px;
+    text-decoration:underline;
+}
+
+.btn.next2:hover{
+    text-decoration:underline;
+    font-weight:bold;
+}
+
+.btn.back2{
+    background:transparent;
+    border: none !important;
+    color:#BEBEBE;
+    margin-top:10px;
+    margin-left:0px;
+    font-size:16px;
+    text-decoration:underline;
+}
+
+.btn.back2:hover{
     text-decoration:underline;
     font-weight:bold;
 }
@@ -251,14 +285,19 @@ lw{
 
 
 .updatemenu-item-rect{
-    stroke:#4b84ce !important;
+    stroke:#505050 !important;
 }
 
 .updatemenu-item-text.user-select-none{
-    fill:#4b84ce !important;
+    fill:#505050 !important;
     font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
     font-size:13px !important;
     font-weight:lighter !important;
+    transform: translate(0px, -4px) !important;
+}
+
+rect.updatemenu-item-rect{
+    height:25px !important;
 }
 
 
